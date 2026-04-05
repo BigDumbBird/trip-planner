@@ -8,6 +8,9 @@ trek-src/
 __pycache__/
 .venv/
 
+# SerpApi usage tracking (machine-local state)
+serpapi_usage.json
+
 # Build artifacts (deploy.sh regenerates)
 trips/*/index.html
 index.html

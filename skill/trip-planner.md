@@ -102,6 +102,137 @@ echo '{
 
 `score_route.py` 使用時機：用戶提出「我想走這個順序 A → B → C」時，**不需要重跑 SA 優化**，直接用 `score_route.py` 測量該路線的實際交通時間即可。
 
+### 機票與住宿搜尋（SerpApi）
+
+**預算：每月 250 次搜尋（機票 + 住宿共用），24 小時 cache 不重複計算。**
+
+| 用途 | 腳本 | 輸入 | 輸出 | 備註 |
+|------|------|------|------|------|
+| 機票搜尋 | `search_flights.py` | stdin JSON（出發/目的 IATA、日期、人數） | stdout JSON（航班清單 + price_insights + usage） | 不主動查 booking links（省額度），輸出含 `booking_token` 備用 |
+| 住宿搜尋 | `search_hotels.py` | stdin JSON（目的地文字、入住/退房日期、人數） | stdout JSON（飯店清單 + 各 OTA 比價 + usage） | OTA 比價（Booking/Agoda/Hotels.com）免費附帶 |
+
+**搜尋前提（gate）— 全部滿足才觸發，缺任何一項就先問用戶：**
+
+#### 機票搜尋 gate：
+- ✅ 出發地（IATA 代碼，如 TPE）
+- ✅ 目的地（IATA 代碼，如 NRT、DAD）
+- ✅ 出發日期（具體日期，不是「大概五月」）
+- ✅ 單程/來回確認；來回需有回程日期
+- ✅ 人數（預設 1）
+
+#### 住宿搜尋 gate：
+- ✅ 目的地（含區域/地段更佳，如「Da Nang beach area」比「Da Nang」精準）
+- ✅ 入住日期
+- ✅ 退房日期
+- ✅ 人數（預設 2）
+
+**呼叫範例：**
+
+```bash
+# 機票搜尋（來回）
+echo '{
+  "departure_id": "TPE",
+  "arrival_id": "DAD",
+  "outbound_date": "2026-05-15",
+  "return_date": "2026-05-20",
+  "type": 1,
+  "adults": 2,
+  "currency": "TWD",
+  "cache_path": "trips/danang-2026-05/data/flights_cache.json"
+}' | direnv exec $REPO python3 scripts/search_flights.py
+
+# 住宿搜尋
+echo '{
+  "q": "Da Nang beach area",
+  "check_in_date": "2026-05-15",
+  "check_out_date": "2026-05-20",
+  "adults": 2,
+  "currency": "TWD",
+  "cache_path": "trips/danang-2026-05/data/hotels_cache.json"
+}' | direnv exec $REPO python3 scripts/search_hotels.py
+```
+
+**可選篩選參數：**
+
+機票（API 層級 + 本地篩選）：
+- `stops`（1=直飛, 2=≤1轉, 3=≤2轉）
+- `travel_class`（1=經濟, 2=豪經, 3=商務, 4=頭等）
+- `sort_by`（2=價格, 5=時長）
+- `include_airlines` / `exclude_airlines`（IATA 代碼，逗號分隔，如 `"VJ,IT,MM"`）
+- `max_price`（最高票價）、`max_duration`（最長飛行分鐘數）
+- **`lcc_only`（本地篩選）**：只顯示廉航班機。內建亞太區主要 LCC 清單（台灣虎航 IT、樂桃 MM、VietJet VJ、酷航 TR、AirAsia AK/FD/D7、宿霧太平洋 5J、香港快運 UO、濟州航空 7C 等）
+- `max_results`（預設 10）
+
+住宿（API 層級 + 本地篩選）：
+- `sort_by`（API：3=最低價, 8=最高評分, 13=最多評論）
+- **`hotel_class`（API 篩選）**— 設 N = N 星以上（如 3 = 三星以上，4 = 四星以上）
+- **`max_hotel_class`（本地篩選）**— 星級上限（如 `hotel_class: 3, max_hotel_class: 3` = 只看三星）
+- `min_price`/`max_price`（價格範圍）
+- `rating`（API 篩選：7=3.5+, 8=4.0+, 9=4.5+）
+- **`min_rating`（本地篩選）**：最低評分（如 4.0），比 API 的 rating 更精確
+- **`min_reviews`（本地篩選）**：最低評論數（預設 20），過濾評論太少、不可靠的飯店
+- **`local_sort`（本地排序）**：`"price"` / `"rating"` / `"value"`（CP 值 = 評分²÷價格，高評分權重更大）
+- `amenities`（35=含早餐, 9=泳池, 19=停車場）
+- `max_results`（預設 10）
+
+**常見篩選組合範例：**
+
+| 用戶說 | 機票參數 | 住宿參數 |
+|--------|---------|---------|
+| 「平價」 | `lcc_only: true` | `local_sort: "price"` |
+| 「四星以上」 | — | `hotel_class: 4, min_rating: 4.0` |
+| 「只看三星」 | — | `hotel_class: 3, max_hotel_class: 3` |
+| 「CP 值高的」 | `lcc_only: true, stops: 1` | `local_sort: "value", min_rating: 4.0` |
+| 「直飛最短」 | `stops: 1, sort_by: 5` | — |
+| 「最便宜」 | `sort_by: 2` | `sort_by: 3` |
+| 「含早餐泳池」 | — | `amenities: "35,9"` |
+
+**篩選策略：** Agent 應根據用戶的預算和偏好主動加篩選條件，不要回傳未篩選的原始結果。篩選後的 10 筆結果才有比直接上網搜更高的價值。
+
+**呈現格式：**
+
+機票：
+```
+✈️ 機票搜尋結果（TPE → DAD，2026-05-15，來回）
+
+ # | 航空       | 航班     | 出發   | 抵達   | 時長    | 轉機 | 價格
+ 1 | VietJet   | VJ-843  | 08:30 | 10:45 | 3h15m  | 直飛 | TWD 4,250
+ 2 | Vietnam   | VN-579  | 14:20 | 16:40 | 3h20m  | 直飛 | TWD 5,800
+
+💡 最低 TWD 3,800 ｜ 常見 TWD 4,000~6,500
+💡 需要某班機的訂票連結？告訴我編號
+📊 本月額度：已用 2 / 250
+```
+
+住宿：
+```
+🏨 住宿搜尋結果（Da Nang，5/15-5/20，5 晚）
+
+ # | 飯店              | 星級 | 評分 | 每晚      | 總價       | 最低來源
+ 1 | Furama Resort    | ⭐5  | 4.6 | TWD 3,200 | TWD 16,000 | Booking.com
+ 2 | Novotel Danang   | ⭐4  | 4.4 | TWD 2,100 | TWD 10,500 | Agoda
+
+📊 本月額度：已用 3 / 250
+```
+
+**來回機票注意事項：**
+- `type: 1`（來回）搜尋結果的**價格已包含來回兩段**，不需要 ×2
+- 搜尋結果只顯示**去程航班**，每班機附帶 `departure_token`
+- 用戶選定去程後，可用 `departure_token` 查回程航班選項（消耗 1 次額度）
+- 呈現給用戶時務必標明「價格為來回票價」
+
+**兒童票注意事項：**
+- SerpApi Google Flights 不支援兒童乘客參數，`adults` 僅計成人
+- 搜尋結果的票價**不含兒童票**。帶小孩的家庭需告知：「此價格為 N 位成人的來回票價，兒童票需另計（通常為成人票價的 75-100%）」
+- SerpApi Google Hotels 同樣不支援兒童人數，房間容量需用戶自行確認
+
+**額度節約規則：**
+- 同一組參數 24 小時內不重複打 API（自動 cache）
+- 不主動查 booking links — 用戶指定某班機時才用 booking_token 查（另消耗 1 次）
+- 來回機票查回程另消耗 1 次，所以一趟來回完整查詢 = 2 次額度
+- 搜尋前先確認所有 gate 條件滿足，避免搜太廣浪費額度
+- 每次搜尋結果都顯示剩餘額度
+
 ### 網站生成與部署
 
 | 用途 | 腳本 | 輸入 | 輸出 |
@@ -155,7 +286,7 @@ direnv exec $REPO python3 scripts/<腳本名>.py [引數]
 
 完整欄位共 50 個（含 `serves_*`、`payment_options`、`reviews` 等），不適用的欄位值為 `null`，一律保留不篩除。
 
-### 其他檔案（每趟旅行 data/ 下共 6 個）
+### 其他檔案（每趟旅行 data/ 下共 8 個）
 
 - `trip.json` — 標題、日期、城市、slug
 - `itinerary.json` — 每日路線，含 places[]、travel[]、recommended_mode
@@ -164,6 +295,8 @@ direnv exec $REPO python3 scripts/<腳本名>.py [引數]
 - `info.json` — 實用資訊（預算、簽證、交通、天氣等）
 - `packing.json` — 行李清單（從 `template/data/packing.json` 複製再客製）
 - `places_cache.json` — Places API 快取（Phase 1 自動生成）
+- `flights_cache.json` — 機票搜尋快取（SerpApi，24h 有效）
+- `hotels_cache.json` — 住宿搜尋快取（SerpApi，24h 有效）
 
 ---
 
@@ -182,8 +315,24 @@ direnv exec $REPO python3 scripts/<腳本名>.py [引數]
 - **交通方式** — 機車？步行？開車？大眾運輸？
 - **必去景點** — 有沒有一定要去的？
 - **特殊需求** — 工作旅行？飲食限制？無障礙？
+- **機票/住宿需求** — 需要幫忙搜機票嗎？住宿有偏好嗎？（區域、星級、預算）
 
 用戶如果一次給了足夠資訊，跳過多餘問題。
+
+### Step 1b: 機票/住宿搜尋（可選）
+
+**當機票或住宿搜尋的 gate 條件全部滿足時，在進入 Step 2 之前（或平行）執行搜尋。**
+
+gate 條件見上方「機票與住宿搜尋（SerpApi）」。未滿足時不搜，告訴用戶還缺哪些資訊。
+
+搜尋流程：
+1. 確認所有 gate 條件 → 呼叫 `search_flights.py` 和/或 `search_hotels.py`
+2. 用上方呈現格式向用戶展示結果
+3. 用戶可以：
+   - 選定航班/飯店 → 記錄在後續 itinerary（`type: "flight"` / `type: "hotel"`）
+   - 要求換條件重搜（如不同日期、不同區域）→ 再次呼叫腳本（消耗額度，但 24h 內同參數免費）
+   - 跳過 → 繼續 Step 2，之後再決定
+4. 機票/住宿決策**不阻塞景點規劃**，用戶可以先規劃行程再回頭選機票
 
 ### Step 2: 生成候選景點清單
 
