@@ -1,16 +1,27 @@
 #!/usr/bin/env bash
 # Deploy to GitHub Pages via gh-pages branch.
-# Usage: bash scripts/deploy.sh
+# Usage: bash scripts/deploy.sh [--only <slug>]
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+ONLY_SLUG=""
+if [[ "${1:-}" == "--only" ]]; then
+    ONLY_SLUG="${2:-}"
+    echo "Incremental mode: only rendering $ONLY_SLUG"
+fi
 
-echo "Building all trips..."
+echo "Building trips..."
 for trip_dir in "$REPO_ROOT"/trips/*/; do
     if [ -f "$trip_dir/data/trip.json" ]; then
+        slug=$(basename "$trip_dir")
         # Skip archived trips
         if python -c "import json,sys;d=json.load(open('$trip_dir/data/trip.json'));sys.exit(0 if d.get('archived') else 1)" 2>/dev/null; then
-            echo "  Skipping archived: $(basename "$trip_dir")"
+            echo "  Skipping archived: $slug"
+            continue
+        fi
+        # Skip if --only specified and this isn't the target
+        if [[ -n "$ONLY_SLUG" && "$slug" != "$ONLY_SLUG" ]]; then
+            echo "  Skipping (not target): $slug"
             continue
         fi
         python "$REPO_ROOT/scripts/render_trip.py" "$trip_dir"

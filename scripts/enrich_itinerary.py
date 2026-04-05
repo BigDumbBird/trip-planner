@@ -23,10 +23,13 @@ Examples:
   direnv exec $REPO python3 scripts/enrich_itinerary.py trips/vietnam-2026-05/data/itinerary.json walking,transit,two_wheeler +07:00
 """
 import json
-import subprocess
 import sys
 import pathlib
 import re
+
+# Direct import instead of subprocess — avoids JSON serialization overhead
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from directions import resolve_places_batched, compute_routes_batched
 
 
 # Distance-based mode selection thresholds (km)
@@ -100,16 +103,24 @@ def main():
     itinerary_path = pathlib.Path(sys.argv[1])
     itinerary = json.loads(itinerary_path.read_text())
 
-    # Parse available_modes from CLI arg or itinerary metadata
-    # Usage: python3 enrich_itinerary.py itinerary.json [walking,driving] [+09:00]
+    # Parse CLI args: modes, timezone, --days filter
+    # Usage: python3 enrich_itinerary.py itinerary.json [walking,driving] [+09:00] [--days 1,3]
     available_modes = None
     utc_offset = None
+    days_filter = None  # None = all days, set() = specific days
 
-    for arg in sys.argv[2:]:
-        if re.match(r'^[+-]\d{2}:\d{2}$', arg):
+    i = 2
+    while i < len(sys.argv):
+        arg = sys.argv[i]
+        if arg == "--days" and i + 1 < len(sys.argv):
+            days_filter = set(int(d) for d in sys.argv[i + 1].split(","))
+            i += 2
+            continue
+        elif re.match(r'^[+-]\d{2}:\d{2}$', arg):
             utc_offset = arg
         elif ',' in arg or arg in ("walking", "driving", "transit", "bicycling", "two_wheeler"):
             available_modes = set(arg.split(","))
+        i += 1
 
     if available_modes is None and "available_modes" in itinerary:
         available_modes = set(itinerary["available_modes"])
@@ -120,6 +131,8 @@ def main():
         print(f"Timezone offset: {utc_offset} (transit will use scheduled departure times)", file=sys.stderr)
     elif available_modes and "transit" in available_modes:
         print("WARNING: transit mode without timezone — queries will not use scheduled departure times", file=sys.stderr)
+    if days_filter:
+        print(f"Incremental mode: only enriching days {sorted(days_filter)}", file=sys.stderr)
 
     # Collect all places and routes.
     # Places that already have lat/lng are "pre-resolved" — they skip API
@@ -132,7 +145,11 @@ def main():
     pre_resolved = set()  # global indices of pre-resolved places
     place_index_map = {}  # (day_idx, place_idx) -> global index
 
+    skipped_days = set()  # day indices to skip (preserve existing travel data)
     for day_idx, day in enumerate(itinerary["days"]):
+        if days_filter and day["day"] not in days_filter:
+            skipped_days.add(day_idx)
+            continue
         for place_idx, place in enumerate(day["places"]):
             global_idx = len(all_places)
             place_index_map[(day_idx, place_idx)] = global_idx
@@ -172,24 +189,49 @@ def main():
     n_new = len(all_places) - n_pre
     print(f"Places: {n_pre} pre-resolved (have lat/lng), {n_new} need API resolution", file=sys.stderr)
 
-    # Call directions.py — pass available_modes so it only queries needed modes
-    input_data = {"places": all_places, "routes": all_routes}
-    if available_modes:
-        input_data["available_modes"] = sorted(available_modes)
-    result = subprocess.run(
-        [sys.executable, "scripts/directions.py"],
-        input=json.dumps(input_data),
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        print(f"directions.py failed: {result.stderr}", file=sys.stderr)
-        sys.exit(1)
+    # Resolve places that need API lookup (pre-resolved ones are kept as-is)
+    needs_resolution = [(i, p["maps_query"]) for i, p in enumerate(all_places) if i not in pre_resolved]
+    if needs_resolution:
+        queries = [q for _, q in needs_resolution]
+        resolved_places = resolve_places_batched(queries)
+        for (idx, _), result in zip(needs_resolution, resolved_places):
+            all_places[idx] = result
 
-    resolved = json.loads(result.stdout)
+    # Build route specs and compute routes via Routes API
+    route_specs = []
+    for r in all_routes:
+        fr, to = r["from"], r["to"]
+        origin, dest = all_places[fr], all_places[to]
+        dep_time = r.get("departure_time")
+        if origin.get("lat") and dest.get("lat"):
+            spec = (fr, to, origin["lat"], origin["lng"], dest["lat"], dest["lng"])
+            if dep_time:
+                spec = spec + (dep_time,)
+            route_specs.append(spec)
+        else:
+            route_specs.append(None)
 
-    # Write back to itinerary — skip pre-resolved entries
+    avail_modes = sorted(available_modes) if available_modes else None
+    valid_specs = [(i, s) for i, s in enumerate(route_specs) if s is not None]
+    if valid_specs:
+        route_results = compute_routes_batched([s for _, s in valid_specs], available_modes=avail_modes)
+        computed_routes = [None] * len(route_specs)
+        for result, (orig_idx, _) in zip(route_results, valid_specs):
+            computed_routes[orig_idx] = result
+        for i, spec in enumerate(route_specs):
+            if spec is None:
+                fr, to = all_routes[i]["from"], all_routes[i]["to"]
+                computed_routes[i] = {"from": fr, "to": to, "modes": {}, "source": "unavailable"}
+    else:
+        computed_routes = []
+
+    resolved = {"places": all_places, "routes": computed_routes}
+
+    # Write back to itinerary — skip pre-resolved entries and skipped days
     global_idx = 0
-    for day in itinerary["days"]:
+    for day_idx, day in enumerate(itinerary["days"]):
+        if day_idx in skipped_days:
+            continue
         for place in day["places"]:
             if global_idx not in pre_resolved:
                 r = resolved["places"][global_idx]
@@ -200,9 +242,11 @@ def main():
                     place["display_name"] = r["display_name"]
             global_idx += 1
 
-    # Map routes back to days
+    # Map routes back to days — skip days not in filter
     route_idx = 0
-    for day in itinerary["days"]:
+    for day_idx, day in enumerate(itinerary["days"]):
+        if day_idx in skipped_days:
+            continue
         if "travel" not in day:
             day["travel"] = []
 
@@ -249,7 +293,15 @@ def main():
                 raw = t["modes"]["bicycling"].get("duration_min", 0)
                 t["modes"]["bicycling"]["duration_min"] = round(raw * SCOOTER_SPEED_FACTOR, 1)
 
-    itinerary_path.write_text(json.dumps(itinerary, ensure_ascii=False, indent=2) + "\n")
+    # Safe write: backup → temp → atomic rename
+    backup_path = itinerary_path.with_suffix(".json.bak")
+    import shutil
+    shutil.copy2(itinerary_path, backup_path)
+
+    tmp_path = itinerary_path.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(itinerary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(itinerary_path)
+    print(f"Backup: {backup_path}", file=sys.stderr)
 
     # Print summary
     for day in itinerary["days"]:

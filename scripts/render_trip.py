@@ -40,6 +40,15 @@ def main():
     trip_dir = pathlib.Path(sys.argv[1])
     data_dir = trip_dir / "data"
 
+    # Validate before render
+    from validate_trip import main as validate_main
+    sys.argv_backup = sys.argv
+    sys.argv = ["validate_trip.py", str(trip_dir)]
+    try:
+        validate_main()
+    finally:
+        sys.argv = sys.argv_backup
+
     trip = load_json(data_dir / "trip.json")
     itinerary = load_json(data_dir / "itinerary.json")
     info = load_json(data_dir / "info.json")
