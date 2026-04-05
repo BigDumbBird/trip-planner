@@ -9,16 +9,16 @@ echo "Building all trips..."
 for trip_dir in "$REPO_ROOT"/trips/*/; do
     if [ -f "$trip_dir/data/trip.json" ]; then
         # Skip archived trips
-        if python3 -c "import json,sys;d=json.load(open('$trip_dir/data/trip.json'));sys.exit(0 if d.get('archived') else 1)" 2>/dev/null; then
+        if python -c "import json,sys;d=json.load(open('$trip_dir/data/trip.json'));sys.exit(0 if d.get('archived') else 1)" 2>/dev/null; then
             echo "  Skipping archived: $(basename "$trip_dir")"
             continue
         fi
-        python3 "$REPO_ROOT/scripts/render_trip.py" "$trip_dir"
+        python "$REPO_ROOT/scripts/render_trip.py" "$trip_dir"
     fi
 done
 
 echo "Building index..."
-python3 "$REPO_ROOT/scripts/build_index.py"
+python "$REPO_ROOT/scripts/build_index.py"
 
 echo "Deploying to gh-pages..."
 # Create a temporary directory with only the deployable files
@@ -26,7 +26,7 @@ DEPLOY_DIR=$(mktemp -d)
 cp "$REPO_ROOT/index.html" "$DEPLOY_DIR/"
 for trip_dir in "$REPO_ROOT"/trips/*/; do
     # Skip archived trips
-    if python3 -c "import json,sys;d=json.load(open('$trip_dir/data/trip.json'));sys.exit(0 if d.get('archived') else 1)" 2>/dev/null; then
+    if python -c "import json,sys;d=json.load(open('$trip_dir/data/trip.json'));sys.exit(0 if d.get('archived') else 1)" 2>/dev/null; then
         continue
     fi
     slug=$(basename "$trip_dir")

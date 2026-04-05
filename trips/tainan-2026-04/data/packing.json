@@ -24,5 +24,8 @@
   { "label": "信用卡", "category": "財務" },
   { "label": "帽子", "category": "其他" },
   { "label": "墨鏡", "category": "其他" },
-  { "label": "輕便雨具", "category": "其他" }
+  { "label": "輕便雨具", "category": "其他" },
+  { "label": "WeMo 安全帽內襯套", "category": "其他" },
+  { "label": "折疊購物袋（掃貨用）", "category": "其他" },
+  { "label": "夾腳拖/涼鞋（飯店用）", "category": "衣物" }
 ]
