@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>峴港會安 Workcation</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23f5f5f5'/><text x='90' y='130' font-size='120' text-anchor='middle'>🏖️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='16' y='26' font-size='28' text-anchor='middle'>🏖️</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#333}
+
+.sticky-header{position:sticky;top:0;z-index:200}
+.top-bar{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:14px 20px 10px;text-align:center;position:relative}
+.top-bar h1{font-size:18px;font-weight:600}
+.top-bar p{font-size:12px;opacity:.85;margin-top:2px}
+.back-home{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.85);text-decoration:none;font-size:22px;line-height:1;padding:4px;border-radius:6px;transition:.15s}
+.back-home:hover{color:#fff;background:rgba(255,255,255,.12)}
+.top-legend{display:flex;justify-content:center;gap:12px;margin-top:8px;font-size:11px;opacity:.8;flex-wrap:wrap}
+
+.tab-nav{display:flex;background:#fff;border-bottom:1px solid #ddd}
+.tab-btn{flex:1;padding:10px;border:none;background:#fff;font-size:13px;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;color:#666;transition:.2s}
+.tab-btn.active{color:#1a73e8;border-bottom-color:#1a73e8}
+
+/* (legend strip moved into top-bar as .top-legend) */
+
+/* Itinerary */
+#itin{display:none;padding-bottom:30px}
+#itin.active{display:block}
+
+.day-sec{margin:16px 12px 0}
+.day-hdr{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-size:15px;font-weight:600}
+.day-hdr .sub{font-size:12px;opacity:.8;margin-top:2px;font-weight:400}
+.day-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+
+/* Place card - entire thing clickable */
+a.place{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit;transition:background .12s;cursor:pointer}
+a.place:last-child{border-bottom:none}
+a.place:hover{background:#f0f6ff}
+a.place:active{background:#e3edfa}
+
+.pc{flex:1;min-width:0}
+.pc-time{font-size:12px;color:#1a5276;font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}
+.pc-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.pc-note{font-size:12px;color:#666;line-height:1.5}
+.pc-user-note{font-size:12px;color:#1a73e8;line-height:1.5;margin-top:2px;font-style:italic}
+.arrow{color:#bbb;font-size:16px;margin-top:3px;flex-shrink:0}
+
+/* Place edit button */
+.place-edit-btn{width:32px;height:32px;border:none;background:none;color:#bbb;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:.15s;text-decoration:none}
+.place-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.place-edit-btn.has-note{color:#1a73e8}
+
+/* Place note editor */
+.place-note-editor{padding:8px 14px;background:#fafbfc;border-bottom:1px solid #f0f0f0;display:none}
+.place-note-editor textarea{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none;box-sizing:border-box}
+.place-note-editor textarea:focus{border-color:#1a73e8}
+.place-note-editor button{margin-top:6px;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+
+/* Travel segment between places */
+.travel-seg{display:flex;flex-direction:column;gap:2px;padding:6px 14px 6px 28px;background:#fafbfc;border-bottom:1px solid #f0f0f0;font-size:11px;color:#888}
+.travel-seg .seg-main{display:flex;align-items:center;gap:8px}
+.travel-seg .seg-icon{font-size:14px}
+.travel-seg .seg-line{flex:1;height:1px;background:#e0e0e0}
+.travel-seg .seg-info{white-space:nowrap;color:#555;font-weight:500}
+.travel-seg .seg-transit{display:flex;flex-direction:column;gap:2px;padding:2px 0 2px 22px;font-size:10px;color:#666}
+.travel-seg .seg-transit-step{display:flex;align-items:center;gap:5px;line-height:1.5}
+.travel-seg .seg-transit-line{background:#1a73e8;color:#fff;padding:1px 6px;border-radius:8px;font-weight:600;font-size:9px;white-space:nowrap}
+.travel-seg .seg-transit-line.bus{background:#0d7a3e}
+.travel-seg .seg-transit-line.rail{background:#1a5276}
+.travel-seg .seg-transit-stops{color:#555}
+.travel-seg .seg-transit-time{color:#999;margin-left:auto;white-space:nowrap}
+
+/* Map */
+#map-panel{display:none}
+#map-panel.active{display:block}
+#map{width:100%;height:calc(100vh - 135px)}
+.map-ctrl{display:flex;gap:5px;padding:8px 10px;background:#fff;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:0;z-index:150;border-bottom:1px solid #ddd}
+.map-ctrl button{padding:4px 10px;border:1.5px solid #ddd;border-radius:14px;background:#fff;font-size:11px;cursor:pointer;white-space:nowrap;transition:.2s}
+.map-ctrl button.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+
+/* Checklist tab */
+#checklist{display:none;padding:16px 12px 30px}
+#checklist.active{display:block}
+.cl-sec{margin-bottom:20px}
+.cl-hdr{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:10px 10px 0 0;font-size:15px;font-weight:600;cursor:pointer;-webkit-user-select:none;user-select:none}
+.cl-hdr .cl-emoji{font-size:18px}
+.cl-hdr .cl-arrow{margin-left:auto;font-size:12px;transition:transform .2s}
+.cl-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+.cl-body.collapsed{display:none}
+.cl-item{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-bottom:1px solid #f0f0f0;transition:background .12s;-webkit-user-select:none;user-select:none}
+.cl-item:hover{background:#f8f9fa}
+.cl-item.checked{opacity:.55}
+.cl-item.checked .cl-label{text-decoration:line-through}
+.cl-check{width:20px;height:20px;border:2px solid #ccc;border-radius:5px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:13px;color:#fff;background:#fff;cursor:pointer}
+.cl-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.cl-info{flex:1;min-width:0}
+.cl-label{font-size:13px;font-weight:500;color:#333}
+.cl-hint{font-size:11px;color:#999;margin-top:2px;line-height:1.4}
+.cl-meta{font-size:11px;color:#888;margin-top:3px;line-height:1.4}
+.cl-del{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:16px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-del:hover{color:#e74c3c;background:#fdecea}
+/* Pencil edit button - same as del but blue on hover */
+.cl-edit-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.cl-progress{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #eee}
+.cl-bar{flex:1;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.cl-bar-fill{height:100%;background:linear-gradient(90deg,#27ae60,#2ecc71);border-radius:3px;transition:width .3s}
+.cl-pct{font-size:11px;color:#888;white-space:nowrap}
+.cl-add{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px dashed #ddd;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s}
+.cl-add:hover{background:#f0f6ff}
+.cl-add-icon{font-size:18px;line-height:1}
+.cl-add-form{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-top:1px dashed #ddd}
+.cl-add-form input,.cl-add-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;box-sizing:border-box}
+.cl-add-form input:focus,.cl-add-form textarea:focus{border-color:#1a73e8}
+.cl-add-form .cl-add-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-add-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-add-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-add-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form{padding:10px 14px;border-bottom:1px solid #f0f0f0;background:#fafbfc}
+.cl-edit-form input,.cl-edit-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;margin-bottom:6px;box-sizing:border-box;-webkit-appearance:none;appearance:none;min-height:44px}
+.cl-edit-form input:focus,.cl-edit-form textarea:focus{border-color:#1a73e8}
+.cl-edit-form .cl-edit-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-edit-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-edit-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-edit-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form .cl-edit-hint{font-size:12px;color:#999}
+
+/* ===== Packing section - TREK style ===== */
+.pk-card{background:#fff;border-radius:14px;border:1px solid #e8e8e8;margin-bottom:8px;overflow:visible}
+.pk-card-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.pk-card-hdr.open{border-bottom:1px solid #e8e8e8}
+.pk-chevron{font-size:10px;color:#999;transition:transform .2s;flex-shrink:0;width:14px;text-align:center}
+.pk-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pk-cat-name{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#666;flex:1;min-width:0}
+.pk-count{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:#f0f0f0;color:#888;flex-shrink:0}
+.pk-count.all-done{background:rgba(22,163,74,0.12);color:#16a34a}
+.pk-menu-btn{width:28px;height:28px;border:none;background:none;color:#999;font-size:16px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.pk-menu-btn:hover{background:#f0f0f0;color:#666}
+.pk-card-body{overflow:hidden}
+.pk-card-body.collapsed{display:none}
+.pk-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;position:relative;transition:background .12s}
+.pk-item:hover{background:#f8f9fa}
+.pk-item.checked .pk-name{opacity:.55;text-decoration:line-through}
+.pk-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.pk-name{flex:1;font-size:13.5px;min-width:0}
+.pk-edit-input{flex:1;font-size:13.5px;padding:2px 8px;border-radius:6px;border:1px solid #1a73e8;outline:none;font-family:inherit;box-sizing:border-box}
+.pk-actions{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity .12s}
+.pk-item:hover .pk-actions{opacity:1}
+@media(max-width:767px){.pk-actions{opacity:1!important}}
+.pk-act-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;min-height:44px}
+.pk-act-btn:hover{color:#1a73e8;background:#e8f0fe}
+.pk-act-btn.del:hover{color:#e74c3c;background:#fdecea}
+.pk-inline-add{display:flex;align-items:center;gap:8px;padding:6px 10px;color:#1a73e8;font-size:13px;cursor:pointer;transition:background .12s;border-radius:0 0 14px 14px}
+.pk-inline-add:hover{background:#f0f6ff}
+.pk-inline-add-form{display:flex;align-items:center;gap:6px;padding:6px 10px}
+.pk-inline-add-form input{flex:1;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13.5px;outline:none;font-family:inherit}
+.pk-inline-add-form input:focus{border-color:#1a73e8}
+.pk-inline-add-form button{width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;min-height:44px}
+.pk-inline-add-form .pk-add-ok{background:#1a73e8;color:#fff}
+.pk-inline-add-form .pk-add-cancel{background:#f0f0f0;color:#666}
+
+/* Packing dropdown menu */
+.pk-dropdown{display:none;position:absolute;top:100%;right:0;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:100;min-width:140px;overflow:hidden}
+.pk-dropdown.open{display:block}
+.pk-dropdown button{display:block;width:100%;padding:10px 14px;border:none;background:none;text-align:left;font-size:13px;cursor:pointer;font-family:inherit;color:#333}
+.pk-dropdown button:hover{background:#f0f6ff}
+.pk-dropdown button.danger{color:#e74c3c}
+.pk-dropdown button.danger:hover{background:#fdecea}
+
+/* Add category button */
+.pk-add-cat{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s;border-radius:10px;margin-top:4px}
+.pk-add-cat:hover{background:#f0f6ff}
+.pk-add-cat-form{display:flex;align-items:center;gap:6px;padding:10px 14px;margin-top:4px}
+.pk-add-cat-form input{flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;outline:none;font-family:inherit}
+.pk-add-cat-form input:focus{border-color:#1a73e8}
+.pk-add-cat-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.pk-add-cat-form .pk-btn-ok{background:#1a73e8;color:#fff}
+.pk-add-cat-form .pk-btn-cancel{background:#f0f0f0;color:#666}
+
+/* Info */
+#info{display:none;padding:16px 12px 30px}
+#info.active{display:block}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{font-size:15px;font-weight:600;color:#1a5276;margin-bottom:8px}
+.card p{font-size:13px;line-height:1.7;color:#555}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:7px 10px;text-align:left;border-bottom:1px solid #eee}
+.tbl th{background:#f8f9fa;font-weight:600;color:#1a5276}
+.tbl .total{font-weight:700;color:#1a73e8}
+.cw-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.cw-tbl th,.cw-tbl td{padding:5px 7px;text-align:left;border-bottom:1px solid #eee;vertical-align:top}
+.cw-tbl th{background:#e8f0fe;font-weight:600;color:#1a5276;white-space:nowrap}
+
+/* Floating notes button */
+.notes-fab{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:300;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s}
+.notes-fab:hover{transform:scale(1.08);box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.notes-panel{display:none;position:fixed;bottom:80px;right:16px;width:320px;max-width:calc(100vw - 32px);max-height:60vh;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:300;overflow:hidden;display:flex;flex-direction:column}
+.notes-panel:not(.open){display:none}
+.notes-panel.open{display:flex}
+.notes-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;font-size:14px;font-weight:600;flex-shrink:0}
+.notes-panel-hdr button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.8;transition:opacity .15s}
+.notes-panel-hdr button:hover{opacity:1}
+.notes-panel textarea{width:100%;height:200px;border:none;padding:12px 16px;font-size:13px;font-family:inherit;line-height:1.6;resize:vertical;outline:none;color:#333;flex:1;overflow-y:auto}
+.notes-panel textarea::placeholder{color:#bbb}
+
+/* Date badge for reservations */
+.res-date-badge{font-size:11px;color:#1a73e8;background:#e8f0fe;padding:2px 6px;border-radius:4px;margin-left:6px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="sticky-header">
+<div class="top-bar">
+  <a href="../" class="back-home" title="返回首頁">←</a>
+  <h1>峴港會安 Workcation</h1>
+  <p>2026 五月 ｜ 海灘 × 古城 × 黃金橋</p>
+  <div class="top-legend">
+    <span>🏨 住宿</span>
+    <span>🍜 美食</span>
+    <span>📍 景點</span>
+    <span>☕ 飲品</span>
+    <span>🚊 交通</span>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="sw('itin',this)">行程</button>
+  <button class="tab-btn" onclick="sw('map-panel',this)">地圖</button>
+  <button class="tab-btn" onclick="sw('checklist',this)">清單</button>
+  <button class="tab-btn" onclick="sw('info',this)">實用資訊</button>
+</div>
+</div><!-- /sticky-header -->
+
+<!-- ==================== 行程 TAB ==================== -->
+<div id="itin" class="active">
+
+
+
+<!-- ===== DAY 1 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 1 — 抵達會安 × 古城夜景<div class="sub">✈️ TPE→DAD→會安</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=16.0439,108.1992" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">✈️ 虎航 IT 551 → 峴港</div>
+    <div class="pc-note"><span class="pc-time">16:35</span>虎航 TPE→DAD，18:10 抵達</div>
+    <div class="pc-user-note" id="pn-1-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">50 分鐘 ｜ 30.0 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Little%20Oasis%20An%20Eco%20Friendly%20Hotel%20%26%20Spa%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJJ3zdG64NQjERgwO4haCMmvY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🏨 Check-in Little Oasis</div>
+    <div class="pc-note"><span class="pc-time">19:10</span>Grab 從機場 ~40 min</div>
+    <div class="pc-user-note" id="pn-1-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 3.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Hoi%20An%20Ancient%20Town%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJ897x3ZAPQjER5-xlS8XyP68" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 會安古城散步</div>
+    <div class="pc-note"><span class="pc-time">19:30</span>燈籠夜景 + 日本廊橋</div>
+    <div class="pc-user-note" id="pn-1-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">10 分鐘 ｜ 0.8 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Banh%20Mi%20Phuong%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJdbnbh9UNQjER12kILnndFNI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Bánh Mì Phượng</div>
+    <div class="pc-note"><span class="pc-time">19:45</span>邊走邊吃，到 21:00</div>
+    <div class="pc-user-note" id="pn-1-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 1.6 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Hoi%20An%20Night%20Market%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJLUlfw30OQjER32jWkRuwRAo" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 會安夜市</div>
+    <div class="pc-note"><span class="pc-time">20:00</span>河畔夜市 + 放水燈，到 22:00</div>
+    <div class="pc-user-note" id="pn-1-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,4)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 2 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 2 — 會安慢活：高樓麵 × 按摩<div class="sub">Work AM → 午後美食 + Spa</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Little%20Oasis%20An%20Eco%20Friendly%20Hotel%20%26%20Spa%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJJ3zdG64NQjERgwO4haCMmvY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">💻 飯店工作</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>飯店 WiFi 工作 (09:00-12:00)</div>
+    <div class="pc-user-note" id="pn-2-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">8 分鐘 ｜ 2.6 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Cao%20Lau%20Ba%20Be%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJ5U9i63EPQjERDeFIbcFEa5w" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Quán Cao lầu Bá Lễ</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>會安必吃高樓麵</div>
+    <div class="pc-user-note" id="pn-2-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">5 分鐘 ｜ 1.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=La%20Spa%20Hoi%20An%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJ8WcbqCIPQjERGmJL5Alux1w" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 La Spa Hoi An</div>
+    <div class="pc-note"><span class="pc-time">14:00</span>⭐5.0 按摩（第 1 次）</div>
+    <div class="pc-user-note" id="pn-2-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 1.9 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Morning%20Glory%20Original%20Restaurant%2C%20106%20Nguyen%20Thai%20Hoc%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJWUA1WX4OQjERWSzif63XzMI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Morning Glory Original</div>
+    <div class="pc-note"><span class="pc-time">18:30</span>會安名廚 Ms. Vy 的越南料理</div>
+    <div class="pc-user-note" id="pn-2-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,3)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 3 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 3 — 會安→峴港<div class="sub">Work AM → 移動日</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Little%20Oasis%20An%20Eco%20Friendly%20Hotel%20%26%20Spa%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJJ3zdG64NQjERgwO4haCMmvY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">💻 飯店工作</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>飯店工作 (09:00-11:30)</div>
+    <div class="pc-user-note" id="pn-3-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 3.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=White%20Rose%20Restaurant%2C%20Hoi%20An%2C%20Vietnam&query_place_id=ChIJkWQr5nYOQjERml4pQTZ7-o8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 White Rose Restaurant</div>
+    <div class="pc-note"><span class="pc-time">11:30</span>會安白玫瑰餃早午餐</div>
+    <div class="pc-user-note" id="pn-3-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">37 分鐘 ｜ 23.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=16.0541,108.247" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🏨 Check-in Nesta Hotel</div>
+    <div class="pc-note"><span class="pc-time">13:00</span>Grab 會安→峴港 ~40 min</div>
+    <div class="pc-user-note" id="pn-3-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 4.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=C%E1%BB%99ng%20C%C3%A0%20Ph%C3%AA%2C%20%C4%90%C3%A0%20N%E1%BA%B5ng%2C%20Vietnam&query_place_id=ChIJi0bpGjIYQjERRodYRF89PH8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">☕ Cộng Cà Phê</div>
+    <div class="pc-note"><span class="pc-time">17:00</span>河畔椰子咖啡</div>
+    <div class="pc-user-note" id="pn-3-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,3)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 4 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 4 — 五行山探洞<div class="sub">Work AM → 五行山 PM</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Seaview%20Coworking%20Danang%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJww8d-kQXQjERK7EmHUCL_fk" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">💻 Seaview Coworking</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>24h 海景 coworking (09:00-13:00)</div>
+    <div class="pc-user-note" id="pn-4-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">16 分鐘 ｜ 7.9 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Marble%20Mountains%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJ2y5L4dQNQjERxeSLc68fbrw" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 五行山</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>石灰岩洞穴 + 寺廟，⚠️ 17:30 關門</div>
+    <div class="pc-user-note" id="pn-4-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">23 分鐘 ｜ 11.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=M%C3%AC%20Qu%E1%BA%A3ng%20B%C3%A0%20Th%C3%AAm%2C%20%C4%90%C3%A0%20N%E1%BA%B5ng%2C%20Vietnam&query_place_id=ChIJ2eEwIrEZQjERmUcku_xN6pw" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Mì Quảng Bà Mua 晚餐</div>
+    <div class="pc-note"><span class="pc-time">18:30</span>峴港名物廣南麵</div>
+    <div class="pc-user-note" id="pn-4-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,2)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 5 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 5 — Spa 放鬆日<div class="sub">Work AM → Herbal Spa PM</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Seaview%20Coworking%20Danang%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJww8d-kQXQjERK7EmHUCL_fk" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">💻 Seaview Coworking</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>09:00-13:00</div>
+    <div class="pc-user-note" id="pn-5-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">4 分鐘 ｜ 1.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Herbal%20Spa%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJ6dOY7ykYQjER0aPtP-ONTzM" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Herbal Spa</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>⭐4.9 按摩（第 2 次）</div>
+    <div class="pc-user-note" id="pn-5-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 2.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Sky36%20Bar%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJFWBN5ToYQjERomaB5cZoEaY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">☕ Sky36</div>
+    <div class="pc-note"><span class="pc-time">20:00</span>峴港最高空中酒吧，可不去</div>
+    <div class="pc-user-note" id="pn-5-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,2)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 6 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 6 — 巴拿山 × 黃金橋<div class="sub">全日遠征</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Sun%20World%20Ba%20Na%20Hills%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJyUQ4aw72QTERCXl5YV-4U1w" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Ba Na Hills 黃金橋</div>
+    <div class="pc-note"><span class="pc-time">08:30</span>Grab ~45 min，纜車 + 黃金橋 + 法國村 + 午餐</div>
+    <div class="pc-user-note" id="pn-6-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">46 分鐘 ｜ 25.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Herbal%20Spa%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJ6dOY7ykYQjER0aPtP-ONTzM" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 按摩收尾</div>
+    <div class="pc-note"><span class="pc-time">18:30</span>按摩（第 3 次），走完一天放鬆</div>
+    <div class="pc-user-note" id="pn-6-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,1)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 7 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 7 — 購物 × 龍橋噴火<div class="sub">最後的峴港</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=My%20Khe%20Beach%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJ4w7694IXQjERrFXucqKL--o" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 美溪海灘</div>
+    <div class="pc-note"><span class="pc-time">10:00</span>最後的悠閒海灘早晨</div>
+    <div class="pc-user-note" id="pn-7-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 4.0 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Han%20Market%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJDcx-OTIYQjERP4eyjItPspA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 韓市場</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>伴手禮 + 紀念品，⚠️ 19:00 關</div>
+    <div class="pc-user-note" id="pn-7-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">5 分鐘 ｜ 1.7 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Vincom%20Plaza%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJiUHaki4YQjER2xtLgxLIgWw" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Vincom Plaza Da Nang</div>
+    <div class="pc-note"><span class="pc-time">17:00</span>冷氣購物，國際品牌</div>
+    <div class="pc-user-note" id="pn-7-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">8 分鐘 ｜ 3.3 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Dragon%20Bridge%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJL1GKWJYZQjERLrEGqlK2kwQ" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 龍橋噴火秀</div>
+    <div class="pc-note"><span class="pc-time">21:00</span>🐉 週日噴火秀！20:30 先到卡位</div>
+    <div class="pc-user-note" id="pn-7-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">11 分鐘 ｜ 5.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Lotte%20Mart%2C%20Da%20Nang%2C%20Vietnam&query_place_id=ChIJ8VnYK-QZQjERpZiaV6g7IFk" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Lotte Mart</div>
+    <div class="pc-note"><span class="pc-time">21:30</span>越南零食伴手禮，到 22:00</div>
+    <div class="pc-user-note" id="pn-7-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,4)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 8 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 8 — 回家<div class="sub">DAD→TPE</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=16.0439,108.1992" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">✈️ 虎航 IT 552 → 桃園</div>
+    <div class="pc-note"><span class="pc-time">19:00</span>虎航 DAD→TPE，22:40 抵達桃園。16:30 前出發到機場</div>
+    <div class="pc-user-note" id="pn-8-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(8,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-8-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(8,0)">儲存</button>
+</div>
+
+
+</div></div>
+
+</div>
+
+<!-- ==================== 地圖 TAB ==================== -->
+<div id="map-panel">
+  <div class="map-ctrl" id="mapBtns">
+    <button class="active" onclick="mf('all',this)">全部</button>
+    
+    <button onclick="mf('d1',this)">Day 1</button>
+    
+    <button onclick="mf('d2',this)">Day 2</button>
+    
+    <button onclick="mf('d3',this)">Day 3</button>
+    
+    <button onclick="mf('d4',this)">Day 4</button>
+    
+    <button onclick="mf('d5',this)">Day 5</button>
+    
+    <button onclick="mf('d6',this)">Day 6</button>
+    
+    <button onclick="mf('d7',this)">Day 7</button>
+    
+    <button onclick="mf('d8',this)">Day 8</button>
+    
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- ==================== 清單 TAB ==================== -->
+<div id="checklist">
+  <div class="cl-sec" id="cl-todo"></div>
+  <div class="cl-sec" id="cl-reservations"></div>
+  <div class="cl-sec" id="cl-packing"></div>
+</div>
+
+<!-- ==================== 實用資訊 TAB ==================== -->
+<div id="info">
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px;overflow:hidden">
+  <span style="font-size:14px;font-weight:500;color:#1a5276;white-space:nowrap">📅 行程日曆</span>
+  <a href="calendar.ics" download="danang-2026-05.ics" style="flex-shrink:0;padding:8px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap">📥 下載 .ics</a>
+</div>
+
+  <div class="card">
+    <h3>預算概覽</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>項目</th>
+            
+            <th>預估（TWD）</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>機票（2 人來回）</td>
+              
+            
+              
+            <td>19,958</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>會安住宿（2 晚 × 1,857）</td>
+              
+            
+              
+            <td>3,714</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>峴港住宿（5 晚 × 1,655）</td>
+              
+            
+              
+            <td>8,275</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Ba Na Hills 門票（2 人）</td>
+              
+            
+              
+            <td>~3,800</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Spa × 3 次（2 人）</td>
+              
+            
+              
+            <td>~3,000-4,500</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>餐飲（7 天）</td>
+              
+            
+              
+            <td>~7,000-10,000</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>交通 Grab</td>
+              
+            
+              
+            <td>~2,000-3,000</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>購物 / 伴手禮</td>
+              
+            
+              
+            <td>依需求</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+      <p style="margin-top:8px;font-size:12px;color:#888">總計約 48,000-53,000 TWD / 2 人（不含購物），每人約 24,000-27,000</p>
+      
+    
+  </div>
+
+  <div class="card">
+    <h3>天氣</h3>
+    
+      <p>5 月是峴港旱季尾聲，氣溫 27-35°C，濕度高。偶有午後雷陣雨但很快結束。適合海灘活動，但正午戶外非常曬。巴拿山海拔 1,400m，比市區涼 5-8°C，帶薄外套。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>交通</h3>
+    
+      <p>市區內以 Grab 為主，短程 TWD 30-50，峴港↔會安約 TWD 300-400。機場到市區 Grab 約 TWD 100-150。不建議租機車（國際駕照在越南認定複雜）。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>實用資訊</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>時差</th>
+            
+            <th>比台灣慢 1 小時（UTC+7）</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>貨幣</td>
+              
+            
+              
+            <td>越南盾 VND，1 TWD ≈ 750-800 VND</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>語言</td>
+              
+            
+              
+            <td>越南語，觀光區英語可通</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>SIM 卡</td>
+              
+            
+              
+            <td>機場買 Viettel 或 Mobifone 觀光 SIM，7 天約 TWD 100-150</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>插座</td>
+              
+            
+              
+            <td>A/C 型，台灣扁頭可直接用</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>小費</td>
+              
+            
+              
+            <td>不強制，Spa 可給 50,000-100,000 VND（TWD 65-130）</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+    
+  </div>
+
+  <div class="card">
+    <h3>緊急聯絡</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>越南緊急電話</th>
+            
+            <th>113（警察）/ 115（救護）</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>台灣駐胡志明市辦事處</td>
+              
+            
+              
+            <td>+84-28-3834-9160</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Grab 客服</td>
+              
+            
+              
+            <td>App 內「Help」</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+    
+  </div>
+
+</div>
+
+<!-- ==================== Floating Notes Button ==================== -->
+<button class="notes-fab" onclick="toggleNotes()" title="筆記">&#128221;</button>
+<div class="notes-panel" id="notesPanel">
+  <div class="notes-panel-hdr">
+    <span>&#128221; 旅行筆記</span>
+    <button onclick="toggleNotes()">&#215;</button>
+  </div>
+  <textarea id="notesArea" placeholder="在這裡記錄你的旅行筆記..."></textarea>
+</div>
+
+<script>
+// Tab switch
+function sw(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['itin','map-panel','checklist','info'].forEach(p=>document.getElementById(p).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='map-panel'&&!mapReady)initMap();
+}
+
+// ===== Notes =====
+const NOTES_KEY='trip-plan:danang-2026-05:notes';
+function toggleNotes(){
+  const panel=document.getElementById('notesPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    const area=document.getElementById('notesArea');
+    try{area.value=localStorage.getItem(NOTES_KEY)||''}catch(e){}
+    area.focus();
+  }
+}
+document.getElementById('notesArea').addEventListener('input',function(){
+  try{localStorage.setItem(NOTES_KEY,this.value)}catch(e){}
+});
+
+// Click outside to close notes panel
+document.addEventListener('click',function(e){
+  var panel=document.getElementById('notesPanel');
+  var fab=document.querySelector('.notes-fab');
+  if(panel.classList.contains('open')&&!panel.contains(e.target)&&!fab.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+// ===== Place Notes =====
+const PLACE_NOTES_KEY='trip-plan:danang-2026-05:place-notes';
+function getPlaceNotes(){try{var s=localStorage.getItem(PLACE_NOTES_KEY);if(s)return JSON.parse(s)}catch(e){}return{}}
+function savePlaceNotes(data){try{localStorage.setItem(PLACE_NOTES_KEY,JSON.stringify(data))}catch(e){}}
+
+function togglePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var isOpen=editor.style.display==='block';
+  // Close all editors first
+  document.querySelectorAll('.place-note-editor').forEach(function(el){el.style.display='none'});
+  if(!isOpen){
+    editor.style.display='block';
+    var notes=getPlaceNotes();
+    var key=day+'-'+idx;
+    var ta=editor.querySelector('textarea');
+    ta.value=notes[key]||'';
+    ta.focus();
+  }
+}
+
+function savePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var ta=editor.querySelector('textarea');
+  var val=ta.value.trim();
+  var notes=getPlaceNotes();
+  var key=day+'-'+idx;
+  if(val){
+    notes[key]=val;
+  } else {
+    delete notes[key];
+  }
+  savePlaceNotes(notes);
+  editor.style.display='none';
+  // Update display
+  var dispEl=document.getElementById('pn-'+day+'-'+idx);
+  if(dispEl){dispEl.textContent=val}
+  // Update pencil icon
+  var editBtn=editor.previousElementSibling;
+  if(editBtn){
+    var pencilBtn=editBtn.querySelector('.place-edit-btn');
+    if(!pencilBtn){
+      // The editBtn IS the <a>, look within it
+      pencilBtn=editBtn.querySelector('.place-edit-btn');
+    }
+  }
+  updatePlaceNoteIndicators();
+}
+
+function updatePlaceNoteIndicators(){
+  var notes=getPlaceNotes();
+  document.querySelectorAll('.place-edit-btn').forEach(function(btn){
+    // Get day,idx from the sibling editor
+    var onclick=btn.getAttribute('onclick');
+    var match=onclick&&onclick.match(/togglePlaceNote\((\d+),(\d+)\)/);
+    if(match){
+      var key=match[1]+'-'+match[2];
+      if(notes[key]){
+        btn.classList.add('has-note');
+      } else {
+        btn.classList.remove('has-note');
+      }
+    }
+  });
+  // Also update display text
+  Object.keys(notes).forEach(function(key){
+    var el=document.getElementById('pn-'+key);
+    if(el)el.textContent=notes[key];
+  });
+}
+
+// Init place notes on load
+document.addEventListener('DOMContentLoaded',function(){updatePlaceNoteIndicators()});
+
+// ===== Checklist: three sections =====
+const defaultReservations=[{"label": "\u864e\u822a\u6a5f\u7968 IT 551 / IT 552", "note": "\u53bb 5/18 16:35 TPE\u2192DAD\uff5c\u56de 5/25 19:00 DAD\u2192TPE\uff5c2 \u4eba\uff0c\u78ba\u8a8d\u884c\u674e\u52a0\u8cfc"}, {"label": "Little Oasis Eco Hotel \u0026 Spa\uff08\u6703\u5b89\uff09", "note": "5/18-20\uff082 \u665a\uff09\uff5cCheck-in 14:00 / Check-out 12:00"}, {"label": "Nesta Hotel\uff08\u5cf4\u6e2f\uff09", "note": "5/20-25\uff085 \u665a\uff09\uff5cCheck-in 14:00 / Check-out 12:00"}, {"label": "Ba Na Hills \u9580\u7968", "note": "5/23\uff08\u516d\uff09\uff5c\u5efa\u8b70\u7dda\u4e0a\u9810\u8cfc\u7e9c\u8eca\u7968\uff0c\u73fe\u5834\u6392\u968a\u4e45"}, {"label": "La Spa Hoi An \u9810\u7d04", "note": "5/19 \u4e0b\u5348 14:00\uff5c\u2b505.0\uff0c\u71b1\u9580\u5efa\u8b70\u63d0\u524d\u8a02"}, {"label": "Herbal Spa Da Nang \u9810\u7d04", "note": "5/22 \u4e0b\u5348 15:00 + 5/23 \u508d\u665a 18:30\uff5c\u2b504.9\uff0c\u5169\u6b21"}];
+const defaultPacking=[{"category": "\u8b49\u4ef6", "label": "\u8b77\u7167\uff08\u6548\u671f 6 \u500b\u6708\u4ee5\u4e0a\uff09"}, {"category": "\u8b49\u4ef6", "label": "\u98ef\u5e97\u8a02\u623f\u78ba\u8a8d\u4fe1"}, {"category": "\u8b49\u4ef6", "label": "\u864e\u822a\u6a5f\u7968 QR Code"}, {"category": "\u8b49\u4ef6", "label": "Ba Na Hills \u9580\u7968"}, {"category": "\u76e5\u6d17", "label": "\u7259\u5237"}, {"category": "\u76e5\u6d17", "label": "\u7259\u818f"}, {"category": "\u76e5\u6d17", "label": "\u9632\u66ec\u4e73\uff08SPF50+\uff09"}, {"category": "\u76e5\u6d17", "label": "\u522e\u9b0d\u5200"}, {"category": "\u76e5\u6d17", "label": "\u8606\u8588\u66ec\u5f8c\u4fee\u5fa9"}, {"category": "\u96fb\u5b50", "label": "\u7b46\u96fb + \u5145\u96fb\u5668"}, {"category": "\u96fb\u5b50", "label": "\u624b\u6a5f\u5145\u96fb\u5668 / \u884c\u52d5\u96fb\u6e90"}, {"category": "\u96fb\u5b50", "label": "\u8033\u6a5f"}, {"category": "\u96fb\u5b50", "label": "\u76f8\u6a5f"}, {"category": "\u91ab\u7642", "label": "\u6b62\u75db\u85e5"}, {"category": "\u91ab\u7642", "label": "\u8178\u80c3\u85e5"}, {"category": "\u91ab\u7642", "label": "\u9632\u868a\u6db2"}, {"category": "\u8ca1\u52d9", "label": "\u8d8a\u5357\u76fe\u73fe\u91d1"}, {"category": "\u8ca1\u52d9", "label": "\u4fe1\u7528\u5361\uff08Visa/Master\uff09"}, {"category": "\u5176\u4ed6", "label": "\u8f15\u4fbf\u96e8\u5177"}, {"category": "\u5176\u4ed6", "label": "\u6cf3\u8863 / \u6c99\u7058\u8932"}, {"category": "\u5176\u4ed6", "label": "\u592a\u967d\u773c\u93e1"}, {"category": "\u5176\u4ed6", "label": "\u8584\u5916\u5957\uff08\u5df4\u62ff\u5c71\u5c71\u4e0a\u6dbc\uff09"}, {"category": "\u5176\u4ed6", "label": "\u62d6\u978b\uff08\u6d77\u7058\u7528\uff09"}];
+const defaultTodo=[{"hint": "LCC \u4e0d\u542b\u514d\u8cbb\u8a17\u904b\uff0c2 \u4eba 7 \u5929\u5efa\u8b70\u81f3\u5c11\u8cb7 20kg \u5171\u7528", "label": "\u78ba\u8a8d\u864e\u822a\u884c\u674e\u52a0\u8cfc"}, {"hint": "\u8d8a\u5357\u4e3b\u8981\u53eb\u8eca\u5de5\u5177\uff0c\u5230\u4e86\u76f4\u63a5\u7528\uff0c\u4e0d\u7528\u63db\u73fe\u91d1\u4ed8\u8eca\u8cbb", "label": "\u4e0b\u8f09 Grab app + \u7d81\u5b9a\u4fe1\u7528\u5361"}, {"hint": "\u6a5f\u5834 ATM \u76f4\u63a5\u9818\u6700\u65b9\u4fbf\uff0c\u6216\u5e36\u7f8e\u91d1/\u53f0\u5e63\u5230\u5e02\u5340\u91d1\u5e97\u63db\u3002Grab \u548c\u5927\u5e97\u53ef\u5237\u5361\uff0c\u5c0f\u6524\u8ca9\u9700\u73fe\u91d1", "label": "\u63db\u8d8a\u5357\u76fe (VND)"}, {"hint": "\u7dda\u4e0a\u8cb7\u6bd4\u73fe\u5834\u4fbf\u5b9c\uff0c\u542b\u7e9c\u8eca\u30025/23 \u9031\u516d\u53ef\u80fd\u4eba\u591a", "label": "\u78ba\u8a8d Ba Na Hills \u9580\u7968"}, {"hint": "\u71b1\u9580\u5e97\u5efa\u8b70\u51fa\u767c\u524d 1 \u9031\u9810\u7d04\uff0c\u5c24\u5176\u9031\u672b\u5834\u6b21", "label": "\u9810\u7d04 Spa (La Spa + Herbal Spa)"}, {"hint": "Little Oasis \u9700\u8981\u80fd\u652f\u6490\u8996\u8a0a\u6703\u8b70\uff0c\u51fa\u767c\u524d\u5beb\u4fe1\u554f", "label": "\u78ba\u8a8d\u98ef\u5e97 WiFi \u901f\u5ea6"}, {"hint": "5 \u6708\u5cf4\u6e2f 33-35\u00b0C\uff0c\u7d2b\u5916\u7dda\u5f37\u3002\u4e94\u884c\u5c71\u548c\u5df4\u62ff\u5c71\u6709\u6236\u5916\u66dd\u66ec", "label": "\u6e96\u5099\u9632\u66ec + \u906e\u967d"}, {"hint": "\u8d8a\u5357\u63d2\u5ea7\u70ba A/C \u578b\uff08\u5169\u8173\u6241 + \u5169\u8173\u5713\uff09\uff0c\u53f0\u7063\u6241\u982d\u53ef\u76f4\u63a5\u7528\uff0c\u4f46\u5713\u5b54\u8a2d\u5099\u9700\u8f49\u63a5", "label": "\u5e36\u8f49\u63a5\u982d"}];
+
+const RES_KEY='trip-plan:danang-2026-05:reservations';
+const PACK_KEY='trip-plan:danang-2026-05:packing';
+const TODO_KEY='trip-plan:danang-2026-05:todo';
+const COLLAPSE_KEY='trip-plan:danang-2026-05:cl-collapse';
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;')}
+
+function lsGet(key,fallback){try{var s=localStorage.getItem(key);if(s)return JSON.parse(s)}catch(e){}return fallback}
+function lsSet(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch(e){}}
+
+function getCollapse(){return lsGet(COLLAPSE_KEY,{reservations:false,packing:false,todo:false})}
+function setCollapse(c){lsSet(COLLAPSE_KEY,c)}
+function toggleCollapse(sec){var c=getCollapse();c[sec]=!c[sec];setCollapse(c);renderAllCl()}
+
+// ---- Data migration for reservations ----
+function migrateRes(items){
+  return items.map(function(item){
+    if(item.platform||item.confirmation||item.amount||item.url){
+      var parts=[];
+      if(item.platform)parts.push('平台: '+item.platform);
+      if(item.confirmation)parts.push('確認碼: '+item.confirmation);
+      if(item.amount)parts.push('金額: '+item.amount);
+      if(item.url)parts.push('連結: '+item.url);
+      if(item.note)parts.push(item.note);
+      item.note=parts.join('\n');
+      delete item.platform;delete item.confirmation;delete item.amount;delete item.url;
+    }
+    return item;
+  });
+}
+
+// ---- Reservations (simplified - same as Todo but with date) ----
+function getRes(){
+  var data=lsGet(RES_KEY,defaultReservations.map(function(d){return Object.assign({},d,{done:false})}));
+  return migrateRes(data);
+}
+function saveRes(data){lsSet(RES_KEY,data)}
+
+var resEditIdx=-1;
+function renderRes(){
+  var el=document.getElementById('cl-reservations');
+  var items=getRes();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  var resSorted=items.map(function(item,i){return{item:item,idx:i}});
+  resSorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'reservations\')"><span class="cl-emoji">&#128197;</span> 訂位<span class="cl-arrow">'+(col.reservations?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.reservations?' collapsed':'')+'">';
+  resSorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    // Format date for badge
+    var dateBadge='';
+    if(item.date){
+      var dateStr=item.date;
+      // Try to show short format like "5/15"
+      var dm=dateStr.match(/(\d{1,2})[-\/](\d{1,2})$/);
+      if(dm){dateStr=parseInt(dm[1])+'/'+parseInt(dm[2])}
+      else{
+        var fullm=dateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+        if(fullm)dateStr=parseInt(fullm[2])+'/'+parseInt(fullm[3]);
+      }
+      dateBadge='<span class="res-date-badge">'+esc(dateStr)+'</span>';
+    }
+    if(resEditIdx===i){
+      // Edit mode
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="resToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info" onclick="event.stopPropagation()">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      // Edit form below
+      h+='<div class="cl-edit-form" id="res-edit-'+i+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div>';
+      h+='<input id="res-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">日期</div>';
+      h+='<input id="res-e-date-'+i+'" type="date" value="'+escAttr(item.date||'')+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">說明</div>';
+      h+='<textarea id="res-e-note-'+i+'" rows="3" style="resize:vertical">'+esc(item.note||'')+'</textarea>';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="resHideEdit()">取消</button><button class="cl-btn-ok" onclick="resSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      // Display mode: checkbox + label + date badge + pencil + trash
+      h+='<div class="cl-item '+ck+'" onclick="resToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="res-add-btn" onclick="resShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="res-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div><input id="res-input-label" placeholder="輸入訂位名稱..." onkeydown="if(event.key===\'Enter\')resAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="resHideAdd()">取消</button><button class="cl-btn-ok" onclick="resAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(resEditIdx>=0){var inp=document.getElementById('res-e-label-'+resEditIdx);if(inp)inp.focus()}
+}
+function resToggle(i){var d=getRes();d[i].done=!d[i].done;saveRes(d);renderRes()}
+function resDel(i){var d=getRes();d.splice(i,1);saveRes(d);resEditIdx=-1;renderRes()}
+function resShowAdd(){document.getElementById('res-add-btn').style.display='none';document.getElementById('res-add-form').style.display='flex';document.getElementById('res-input-label').focus()}
+function resHideAdd(){document.getElementById('res-add-btn').style.display='flex';document.getElementById('res-add-form').style.display='none';document.getElementById('res-input-label').value=''}
+function resAdd(){var v=document.getElementById('res-input-label').value.trim();if(!v)return;var d=getRes();d.push({label:v,done:false});saveRes(d);renderRes()}
+function resShowEdit(i){resEditIdx=(resEditIdx===i)?-1:i;renderRes()}
+function resHideEdit(){resEditIdx=-1;renderRes()}
+function resSaveEdit(i){
+  var label=document.getElementById('res-e-label-'+i).value.trim();
+  if(!label)return;
+  var d=getRes();
+  d[i].label=label;
+  d[i].date=document.getElementById('res-e-date-'+i).value.trim();
+  d[i].note=document.getElementById('res-e-note-'+i).value.trim();
+  saveRes(d);resEditIdx=-1;renderRes();
+}
+
+// ---- Packing (TREK-style category cards) ----
+var PACK_COLORS=['#3b82f6','#a855f7','#ec4899','#22c55e','#f97316','#06b6d4','#ef4444','#eab308','#8b5cf6','#14b8a6'];
+function catColor(cat,allCats){
+  var idx=allCats?allCats.indexOf(cat):-1;
+  if(idx>=0)return PACK_COLORS[idx%PACK_COLORS.length];
+  var h=0;for(var i=0;i<cat.length;i++)h=((h<<5)-h+cat.charCodeAt(i))|0;
+  return PACK_COLORS[Math.abs(h)%PACK_COLORS.length];
+}
+
+function getPack(){
+  var stored=lsGet(PACK_KEY,null);
+  if(stored===null||(Array.isArray(stored)&&stored.length===0&&defaultPacking.length>0)){
+    var fresh=defaultPacking.map(function(d){return Object.assign({},d,{done:false})});
+    savePack(fresh);
+    return fresh;
+  }
+  return stored;
+}
+function savePack(data){lsSet(PACK_KEY,data)}
+
+var packEditIdx=-1;
+var packOpenMenuCat=null;
+var packAddingCat=false;
+var packAddingItemCat=null; // which category is showing the inline add form
+var packCollapsed={}; // track collapsed categories
+
+function getPackCollapsed(){return lsGet(PACK_KEY+':collapsed',{})}
+function setPackCollapsed(data){lsSet(PACK_KEY+':collapsed',data)}
+
+function renderPack(){
+  var el=document.getElementById('cl-packing');
+  var items=getPack();
+  var col=getCollapse();
+
+  // Group by category
+  var groups={};var catOrder=[];
+  items.forEach(function(item,i){
+    var cat=item.category||'其他';
+    if(!groups[cat]){groups[cat]=[];catOrder.push(cat)}
+    groups[cat].push(Object.assign({},item,{_idx:i}));
+  });
+  // Move '其他' to end
+  var otherIdx=catOrder.indexOf('其他');
+  if(otherIdx>-1&&otherIdx<catOrder.length-1){catOrder.splice(otherIdx,1);catOrder.push('其他')}
+
+  var allCats=catOrder.filter(function(c){return c!=='其他'});
+  var catCollapsed=getPackCollapsed();
+
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'packing\')"><span class="cl-emoji">&#129523;</span> 行李清單<span class="cl-arrow">'+(col.packing?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-body'+(col.packing?' collapsed':'')+'" style="background:transparent;padding:4px 0">';
+
+  catOrder.forEach(function(cat){
+    var color=catColor(cat,allCats);
+    var catItems=groups[cat];
+    catItems.sort(function(a,b){return(a.done?1:0)-(b.done?1:0)});
+    var catDone=catItems.filter(function(it){return it.done}).length;
+    var isCollapsed=catCollapsed[cat]===true;
+    var allChecked=catItems.length>0&&catDone===catItems.length;
+
+    h+='<div class="pk-card">';
+    // Header
+    h+='<div class="pk-card-hdr'+(isCollapsed?'':' open')+'" onclick="packToggleCat(\''+escAttr(cat)+'\')">';
+    h+='<span class="pk-chevron">'+(isCollapsed?'&#9654;':'&#9660;')+'</span>';
+    h+='<span class="pk-dot" style="background:'+color+'"></span>';
+    h+='<span class="pk-cat-name">'+esc(cat)+'</span>';
+    h+='<span class="pk-count'+(allChecked?' all-done':'')+'">'+catDone+'/'+catItems.length+'</span>';
+    h+='<span class="pk-menu-btn" onclick="event.stopPropagation();packToggleMenu(\''+escAttr(cat)+'\')" style="position:relative">&#8943;';
+    if(packOpenMenuCat===cat){
+      h+='<div class="pk-dropdown open">';
+      h+='<button onclick="event.stopPropagation();packRenameCat(\''+escAttr(cat)+'\')">重新命名</button>';
+      h+='<button onclick="event.stopPropagation();packCheckAllCat(\''+escAttr(cat)+'\')">全部勾選</button>';
+      h+='<button onclick="event.stopPropagation();packUncheckAllCat(\''+escAttr(cat)+'\')">取消全部勾選</button>';
+      h+='<button class="danger" onclick="event.stopPropagation();packDelCat(\''+escAttr(cat)+'\')">刪除分類</button>';
+      h+='</div>';
+    }
+    h+='</span>';
+    h+='</div>';
+
+    // Body
+    h+='<div class="pk-card-body'+(isCollapsed?' collapsed':'')+'">';
+    catItems.forEach(function(item){
+      var i=item._idx;
+      var ck=item.done?'checked':'';
+      h+='<div class="pk-item '+ck+'" data-pack-idx="'+i+'" onclick="packToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<span class="pk-name">'+esc(item.label)+'</span>';
+      h+='<span class="pk-actions">';
+      h+='<button class="pk-act-btn" onclick="event.stopPropagation();packShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="pk-act-btn del" onclick="event.stopPropagation();packDel('+i+')" title="刪除">&#215;</button>';
+      h+='</span>';
+      h+='</div>';
+      if(packEditIdx===i){
+        h+='<div class="cl-edit-form">';
+        h+='<div style="font-size:12px;color:#888;margin-bottom:2px">物品名稱</div>';
+        h+='<input id="pk-edit-input-'+i+'" value="'+escAttr(item.label)+'">';
+        h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="packCancelEdit()">取消</button><button class="cl-btn-ok" onclick="packSaveEdit('+i+',document.getElementById(\'pk-edit-input-'+i+'\').value)">儲存</button></div>';
+        h+='</div>';
+      }
+    });
+
+    // Inline add
+    if(packAddingItemCat===cat){
+      h+='<div class="pk-inline-add-form" id="pk-add-form-'+escAttr(cat)+'">';
+      h+='<input id="pk-add-input-'+escAttr(cat)+'" placeholder="新增物品..." onkeydown="if(event.key===\'Enter\')packAddItem(\''+escAttr(cat)+'\');if(event.key===\'Escape\')packHideAddItem()">';
+      h+='<button class="pk-add-ok" onclick="packAddItem(\''+escAttr(cat)+'\')">+</button>';
+      h+='<button class="pk-add-cancel" onclick="packHideAddItem()">&#215;</button>';
+      h+='</div>';
+    } else {
+      h+='<div class="pk-inline-add" onclick="packShowAddItem(\''+escAttr(cat)+'\')"><span style="font-size:16px;margin-right:4px">+</span> 新增</div>';
+    }
+    h+='</div>'; // pk-card-body
+    h+='</div>'; // pk-card
+  });
+
+  // Add new category
+  if(packAddingCat){
+    h+='<div class="pk-add-cat-form" id="pk-add-cat-form">';
+    h+='<input id="pk-add-cat-input" placeholder="分類名稱..." onkeydown="if(event.key===\'Enter\')packAddCat();if(event.key===\'Escape\'){packAddingCat=false;renderPack()}">';
+    h+='<button class="pk-btn-ok" onclick="packAddCat()">新增</button>';
+    h+='<button class="pk-btn-cancel" onclick="packAddingCat=false;renderPack()">取消</button>';
+    h+='</div>';
+  } else {
+    h+='<div class="pk-add-cat" onclick="packAddingCat=true;renderPack()"><span style="font-size:16px;margin-right:4px">+</span> 新增分類</div>';
+  }
+
+  h+='</div>'; // cl-body
+  el.innerHTML=h;
+
+  // Focus inputs
+  if(packEditIdx>=0){var inp=document.getElementById('pk-edit-input-'+packEditIdx);if(inp){inp.focus();inp.select()}}
+  if(packAddingCat){var catInp=document.getElementById('pk-add-cat-input');if(catInp)catInp.focus()}
+  if(packAddingItemCat){var addInp=document.getElementById('pk-add-input-'+packAddingItemCat);if(addInp)addInp.focus()}
+}
+
+function packToggle(i){var d=getPack();d[i].done=!d[i].done;savePack(d);renderPack()}
+function packDel(i){var d=getPack();d.splice(i,1);savePack(d);packEditIdx=-1;renderPack()}
+
+function packShowEdit(i){
+  packEditIdx=i;
+  renderPack();
+  var inp=document.getElementById('pk-edit-input-'+i);if(inp)inp.focus();
+}
+function packSaveEdit(i,val){
+  val=val.trim();
+  if(!val){packCancelEdit();return}
+  var d=getPack();d[i].label=val;savePack(d);
+  packEditIdx=-1;
+  renderPack();
+}
+function packCancelEdit(){
+  packEditIdx=-1;
+  renderPack();
+}
+
+function packToggleCat(cat){
+  var cc=getPackCollapsed();
+  cc[cat]=!cc[cat];
+  setPackCollapsed(cc);
+  renderPack();
+}
+
+function packToggleMenu(cat){
+  packOpenMenuCat=(packOpenMenuCat===cat)?null:cat;
+  renderPack();
+}
+
+function packRenameCat(cat){
+  var newName=prompt('重新命名分類:',cat);
+  if(!newName||!newName.trim()||newName.trim()===cat){packOpenMenuCat=null;renderPack();return}
+  newName=newName.trim();
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.category=newName});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packCheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=true});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packUncheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=false});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packDelCat(cat){
+  if(!confirm('確定刪除「'+cat+'」分類及其所有物品？'))return;
+  var d=getPack().filter(function(item){return(item.category||'其他')!==cat});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packShowAddItem(cat){
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packHideAddItem(){
+  packAddingItemCat=null;
+  renderPack();
+}
+
+function packAddItem(cat){
+  var inp=document.getElementById('pk-add-input-'+cat);
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  var d=getPack();
+  d.push({label:v,category:cat==='其他'?'':cat,done:false});
+  savePack(d);
+  // Keep input focused for rapid entry
+  inp.value='';
+  renderPack();
+  // Re-focus after render
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packAddCat(){
+  var inp=document.getElementById('pk-add-cat-input');
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  // Add a placeholder item in this category to create it
+  var d=getPack();
+  d.push({label:'(新物品)',category:v,done:false});
+  savePack(d);
+  packAddingCat=false;
+  // Open inline add for the new category immediately
+  packAddingItemCat=v;
+  renderPack();
+}
+
+// Close packing menu when clicking outside
+document.addEventListener('click',function(e){
+  if(packOpenMenuCat&&!e.target.closest('.pk-menu-btn')){
+    packOpenMenuCat=null;
+    renderPack();
+  }
+});
+
+// ---- Todo (with pencil icon) ----
+function getTodo(){return lsGet(TODO_KEY,defaultTodo.map(function(d){return Object.assign({},d,{done:false})}))}
+function saveTodo(data){lsSet(TODO_KEY,data)}
+
+var todoEditIdx=-1;
+function renderTodo(){
+  var el=document.getElementById('cl-todo');
+  var items=getTodo();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  // Sort: unchecked first, then checked
+  var sorted=items.map(function(item,i){return{item:item,idx:i}});
+  sorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'todo\')"><span class="cl-emoji">&#9989;</span> 待辦清單<span class="cl-arrow">'+(col.todo?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.todo?' collapsed':'')+'">';
+  sorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    if(todoEditIdx===i){
+      // Edit mode: item row + edit form below (same as reservations)
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="todoToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<span class="cl-label">'+esc(item.label)+'</span>';
+      if(item.hint){h+='<div class="cl-hint">'+esc(item.hint)+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      h+='<div class="cl-edit-form">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div>';
+      h+='<input id="todo-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">備註</div>';
+      h+='<input id="todo-e-hint-'+i+'" value="'+escAttr(item.hint||'')+'">';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="todoHideEdit()">取消</button><button class="cl-btn-ok" onclick="todoSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      h+='<div class="cl-item '+ck+'" onclick="todoToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info"><span class="cl-label">'+esc(item.label)+'</span>'+(item.hint?'<div class="cl-hint">'+esc(item.hint)+'</div>':'')+'</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="todo-add-btn" onclick="todoShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="todo-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div><input id="todo-input-label" placeholder="輸入待辦事項..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();document.getElementById(\'todo-input-hint\').focus()}"><div style="font-size:12px;color:#888;margin-bottom:2px;margin-top:4px">備註</div><input id="todo-input-hint" placeholder="選填" onkeydown="if(event.key===\'Enter\')todoAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="todoHideAdd()">取消</button><button class="cl-btn-ok" onclick="todoAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(todoEditIdx>=0){var inp=document.getElementById('todo-e-label-'+todoEditIdx);if(inp)inp.focus()}
+}
+function todoToggle(i){var d=getTodo();d[i].done=!d[i].done;saveTodo(d);renderTodo()}
+function todoDel(i){var d=getTodo();d.splice(i,1);saveTodo(d);todoEditIdx=-1;renderTodo()}
+function todoShowAdd(){document.getElementById('todo-add-btn').style.display='none';document.getElementById('todo-add-form').style.display='flex';document.getElementById('todo-input-label').focus()}
+function todoHideAdd(){document.getElementById('todo-add-btn').style.display='flex';document.getElementById('todo-add-form').style.display='none';document.getElementById('todo-input-label').value='';document.getElementById('todo-input-hint').value=''}
+function todoAdd(){var v=document.getElementById('todo-input-label').value.trim();if(!v)return;var hint=document.getElementById('todo-input-hint').value.trim();var d=getTodo();d.push({label:v,hint:hint,done:false});saveTodo(d);renderTodo()}
+function todoShowEdit(i){todoEditIdx=i;renderTodo()}
+function todoHideEdit(){todoEditIdx=-1;renderTodo()}
+function todoSaveEdit(i){var inp=document.getElementById('todo-e-label-'+i);if(!inp)return;var v=inp.value.trim();if(!v){todoHideEdit();return}var d=getTodo();d[i].label=v;var hInp=document.getElementById('todo-e-hint-'+i);d[i].hint=hInp?hInp.value.trim():'';saveTodo(d);todoEditIdx=-1;renderTodo()}
+
+function renderAllCl(){renderTodo();renderRes();renderPack()}
+renderAllCl();
+
+// Map controls: position below sticky header
+(function(){
+  var sh=document.querySelector('.sticky-header');
+  var mc=document.querySelector('.map-ctrl');
+  function update(){
+    if(sh&&mc){mc.style.top=sh.offsetHeight+'px'}
+  }
+  update();
+  window.addEventListener('resize',update);
+})();
+
+// Map
+var mapReady=false,mo,markers=[];
+var colors={"drink": "#8e44ad", "flight": "#95a5a6", "food": "#e67e22", "hotel": "#e74c3c", "spot": "#27ae60", "transport": "#95a5a6", "work": "#2e86c1"};
+
+var pts=[{"c": "flight", "d": "d1", "desc": "\u864e\u822a TPE\u2192DAD\uff0c18:10 \u62b5\u9054", "lat": 16.0439, "lng": 108.1992, "maps_query": "16.0439,108.1992", "n": "\u864e\u822a IT 551 \u2192 \u5cf4\u6e2f", "place_id": null}, {"c": "hotel", "d": "d1", "desc": "Grab \u5f9e\u6a5f\u5834 ~40 min", "lat": 15.883081299999999, "lng": 108.3508482, "maps_query": "Little Oasis An Eco Friendly Hotel \u0026 Spa, Hoi An, Vietnam", "n": "Check-in Little Oasis", "place_id": "ChIJJ3zdG64NQjERgwO4haCMmvY"}, {"c": "spot", "d": "d1", "desc": "\u71c8\u7c60\u591c\u666f + \u65e5\u672c\u5eca\u6a4b", "lat": 15.8768461, "lng": 108.32617769999999, "maps_query": "Hoi An Ancient Town, Hoi An, Vietnam", "n": "\u6703\u5b89\u53e4\u57ce\u6563\u6b65", "place_id": "ChIJ897x3ZAPQjER5-xlS8XyP68"}, {"c": "food", "d": "d1", "desc": "\u908a\u8d70\u908a\u5403\uff0c\u5230 21:00", "lat": 15.878499000000001, "lng": 108.3320488, "maps_query": "Banh Mi Phuong, Hoi An, Vietnam", "n": "B\u00e1nh M\u00ec Ph\u01b0\u1ee3ng", "place_id": "ChIJdbnbh9UNQjER12kILnndFNI"}, {"c": "spot", "d": "d1", "desc": "\u6cb3\u7554\u591c\u5e02 + \u653e\u6c34\u71c8\uff0c\u5230 22:00", "lat": 15.875969300000001, "lng": 108.3260184, "maps_query": "Hoi An Night Market, Hoi An, Vietnam", "n": "\u6703\u5b89\u591c\u5e02", "place_id": "ChIJLUlfw30OQjER32jWkRuwRAo"}, {"c": "work", "d": "d2", "desc": "\u98ef\u5e97 WiFi \u5de5\u4f5c (09:00-12:00)", "lat": 15.883081299999999, "lng": 108.3508482, "maps_query": "Little Oasis An Eco Friendly Hotel \u0026 Spa, Hoi An, Vietnam", "n": "\u98ef\u5e97\u5de5\u4f5c", "place_id": "ChIJJ3zdG64NQjERgwO4haCMmvY"}, {"c": "food", "d": "d2", "desc": "\u6703\u5b89\u5fc5\u5403\u9ad8\u6a13\u9eb5", "lat": 15.8794816, "lng": 108.3294126, "maps_query": "Cao Lau Ba Be, Hoi An, Vietnam", "n": "Qu\u00e1n Cao l\u1ea7u B\u00e1 L\u1ec5", "place_id": "ChIJ5U9i63EPQjERDeFIbcFEa5w"}, {"c": "spot", "d": "d2", "desc": "\u2b505.0 \u6309\u6469\uff08\u7b2c 1 \u6b21\uff09", "lat": 15.8800087, "lng": 108.3164615, "maps_query": "La Spa Hoi An, Hoi An, Vietnam", "n": "La Spa Hoi An", "place_id": "ChIJ8WcbqCIPQjERGmJL5Alux1w"}, {"c": "food", "d": "d2", "desc": "\u6703\u5b89\u540d\u5eda Ms. Vy \u7684\u8d8a\u5357\u6599\u7406", "lat": 15.876660399999999, "lng": 108.3276901, "maps_query": "Morning Glory Original Restaurant, 106 Nguyen Thai Hoc, Hoi An, Vietnam", "n": "Morning Glory Original", "place_id": "ChIJWUA1WX4OQjERWSzif63XzMI"}, {"c": "work", "d": "d3", "desc": "\u98ef\u5e97\u5de5\u4f5c (09:00-11:30)", "lat": 15.883081299999999, "lng": 108.3508482, "maps_query": "Little Oasis An Eco Friendly Hotel \u0026 Spa, Hoi An, Vietnam", "n": "\u98ef\u5e97\u5de5\u4f5c", "place_id": "ChIJJ3zdG64NQjERgwO4haCMmvY"}, {"c": "food", "d": "d3", "desc": "\u6703\u5b89\u767d\u73ab\u7470\u9903\u65e9\u5348\u9910", "lat": 15.882902799999998, "lng": 108.3249932, "maps_query": "White Rose Restaurant, Hoi An, Vietnam", "n": "White Rose Restaurant", "place_id": "ChIJkWQr5nYOQjERml4pQTZ7-o8"}, {"c": "hotel", "d": "d3", "desc": "Grab \u6703\u5b89\u2192\u5cf4\u6e2f ~40 min", "lat": 16.0541, "lng": 108.247, "maps_query": "16.0541,108.247", "n": "Check-in Nesta Hotel", "place_id": null}, {"c": "drink", "d": "d3", "desc": "\u6cb3\u7554\u6930\u5b50\u5496\u5561", "lat": 16.0690486, "lng": 108.2248767, "maps_query": "C\u1ed9ng C\u00e0 Ph\u00ea, \u0110\u00e0 N\u1eb5ng, Vietnam", "n": "C\u1ed9ng C\u00e0 Ph\u00ea", "place_id": "ChIJi0bpGjIYQjERRodYRF89PH8"}, {"c": "work", "d": "d4", "desc": "24h \u6d77\u666f coworking (09:00-13:00)", "lat": 16.0653093, "lng": 108.24364059999999, "maps_query": "Seaview Coworking Danang, Da Nang, Vietnam", "n": "Seaview Coworking", "place_id": "ChIJww8d-kQXQjERK7EmHUCL_fk"}, {"c": "spot", "d": "d4", "desc": "\u77f3\u7070\u5ca9\u6d1e\u7a74 + \u5bfa\u5edf\uff0c\u26a0\ufe0f 17:30 \u95dc\u9580", "lat": 16.0037104, "lng": 108.2631605, "maps_query": "Marble Mountains, Da Nang, Vietnam", "n": "\u4e94\u884c\u5c71", "place_id": "ChIJ2y5L4dQNQjERxeSLc68fbrw"}, {"c": "food", "d": "d4", "desc": "\u5cf4\u6e2f\u540d\u7269\u5ee3\u5357\u9eb5", "lat": 16.0565752, "lng": 108.208438, "maps_query": "M\u00ec Qu\u1ea3ng B\u00e0 Th\u00eam, \u0110\u00e0 N\u1eb5ng, Vietnam", "n": "M\u00ec Qu\u1ea3ng B\u00e0 Mua \u665a\u9910", "place_id": "ChIJ2eEwIrEZQjERmUcku_xN6pw"}, {"c": "work", "d": "d5", "desc": "09:00-13:00", "lat": 16.0653093, "lng": 108.24364059999999, "maps_query": "Seaview Coworking Danang, Da Nang, Vietnam", "n": "Seaview Coworking", "place_id": "ChIJww8d-kQXQjERK7EmHUCL_fk"}, {"c": "spot", "d": "d5", "desc": "\u2b504.9 \u6309\u6469\uff08\u7b2c 2 \u6b21\uff09", "lat": 16.069025, "lng": 108.23702639999999, "maps_query": "Herbal Spa, Da Nang, Vietnam", "n": "Herbal Spa", "place_id": "ChIJ6dOY7ykYQjER0aPtP-ONTzM"}, {"c": "drink", "d": "d5", "desc": "\u5cf4\u6e2f\u6700\u9ad8\u7a7a\u4e2d\u9152\u5427\uff0c\u53ef\u4e0d\u53bb", "lat": 16.0771856, "lng": 108.22383509999999, "maps_query": "Sky36 Bar, Da Nang, Vietnam", "n": "Sky36", "place_id": "ChIJFWBN5ToYQjERomaB5cZoEaY"}, {"c": "spot", "d": "d6", "desc": "Grab ~45 min\uff0c\u7e9c\u8eca + \u9ec3\u91d1\u6a4b + \u6cd5\u570b\u6751 + \u5348\u9910", "lat": 16.0265144, "lng": 108.03279719999999, "maps_query": "Sun World Ba Na Hills, Da Nang, Vietnam", "n": "Ba Na Hills \u9ec3\u91d1\u6a4b", "place_id": "ChIJyUQ4aw72QTERCXl5YV-4U1w"}, {"c": "spot", "d": "d6", "desc": "\u6309\u6469\uff08\u7b2c 3 \u6b21\uff09\uff0c\u8d70\u5b8c\u4e00\u5929\u653e\u9b06", "lat": 16.069025, "lng": 108.23702639999999, "maps_query": "Herbal Spa, Da Nang, Vietnam", "n": "\u6309\u6469\u6536\u5c3e", "place_id": "ChIJ6dOY7ykYQjER0aPtP-ONTzM"}, {"c": "spot", "d": "d7", "desc": "\u6700\u5f8c\u7684\u60a0\u9592\u6d77\u7058\u65e9\u6668", "lat": 16.0616944, "lng": 108.24693459999999, "maps_query": "My Khe Beach, Da Nang, Vietnam", "n": "\u7f8e\u6eaa\u6d77\u7058", "place_id": "ChIJ4w7694IXQjERrFXucqKL--o"}, {"c": "spot", "d": "d7", "desc": "\u4f34\u624b\u79ae + \u7d00\u5ff5\u54c1\uff0c\u26a0\ufe0f 19:00 \u95dc", "lat": 16.068083599999998, "lng": 108.224069, "maps_query": "Han Market, Da Nang, Vietnam", "n": "\u97d3\u5e02\u5834", "place_id": "ChIJDcx-OTIYQjERP4eyjItPspA"}, {"c": "spot", "d": "d7", "desc": "\u51b7\u6c23\u8cfc\u7269\uff0c\u570b\u969b\u54c1\u724c", "lat": 16.0714014, "lng": 108.2299673, "maps_query": "Vincom Plaza, Da Nang, Vietnam", "n": "Vincom Plaza Da Nang", "place_id": "ChIJiUHaki4YQjER2xtLgxLIgWw"}, {"c": "spot", "d": "d7", "desc": "\ud83d\udc09 \u9031\u65e5\u5674\u706b\u79c0\uff0120:30 \u5148\u5230\u5361\u4f4d", "lat": 16.0611042, "lng": 108.2276926, "maps_query": "Dragon Bridge, Da Nang, Vietnam", "n": "\u9f8d\u6a4b\u5674\u706b\u79c0", "place_id": "ChIJL1GKWJYZQjERLrEGqlK2kwQ"}, {"c": "spot", "d": "d7", "desc": "\u8d8a\u5357\u96f6\u98df\u4f34\u624b\u79ae\uff0c\u5230 22:00", "lat": 16.0348373, "lng": 108.22925839999999, "maps_query": "Lotte Mart, Da Nang, Vietnam", "n": "Lotte Mart", "place_id": "ChIJ8VnYK-QZQjERpZiaV6g7IFk"}, {"c": "flight", "d": "d8", "desc": "\u864e\u822a DAD\u2192TPE\uff0c22:40 \u62b5\u9054\u6843\u5712\u300216:30 \u524d\u51fa\u767c\u5230\u6a5f\u5834", "lat": 16.0439, "lng": 108.1992, "maps_query": "16.0439,108.1992", "n": "\u864e\u822a IT 552 \u2192 \u6843\u5712", "place_id": null}];
+
+var allBounds=L.latLngBounds([]);
+var dayBoundsMap={};
+(function(){
+  if(pts.length===0)return;
+  var dayPts={};
+  pts.forEach(function(p){
+    allBounds.extend([p.lat,p.lng]);
+    if(!dayPts[p.d])dayPts[p.d]=[];
+    dayPts[p.d].push(p);
+  });
+  Object.keys(dayPts).forEach(function(d){
+    var b=L.latLngBounds(dayPts[d].map(function(p){return[p.lat,p.lng]}));
+    dayBoundsMap[d]=b;
+  });
+})();
+
+function mkIco(col){
+  return L.divIcon({className:'',html:'<svg width="22" height="30" viewBox="0 0 28 36"><path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="'+col+'" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>',iconSize:[22,30],iconAnchor:[11,30],popupAnchor:[0,-30]});
+}
+
+function initMap(){
+  mo=L.map('map');
+  if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});else mo.setView([0,0],2);
+  L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:18}).addTo(mo);
+  pts.forEach(function(p){
+    var m=L.marker([p.lat,p.lng],{icon:mkIco(colors[p.c]||'#999')});
+    var dayLabel=p.d.replace('d','Day ');
+    var url=p.place_id?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n)+'&query_place_id='+p.place_id:(p.lat&&p.lng)?'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n);
+    m.bindPopup('<div style="min-width:180px"><b style="font-size:14px">'+p.n+'</b><br><span style="font-size:11px;color:#888">'+dayLabel+'</span><br><span style="font-size:12px;color:#555;line-height:1.5">'+(p.desc||'')+'</span><br><a href="'+url+'" target="_blank" style="color:#1a73e8;font-size:12px;margin-top:4px;display:inline-block">&#128205; 在 Google Maps 開啟</a></div>');
+    m.pd=p;
+    m.addTo(mo);
+    markers.push(m);
+  });
+  // Color legend
+  var legend=L.control({position:'bottomright'});
+  legend.onAdd=function(){
+    var d=L.DomUtil.create('div');
+    d.style.cssText='background:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:12px;line-height:2.2';
+    var legendItems=[
+      ['#e74c3c','住宿'],
+      ['#2e86c1','工作'],
+      ['#e67e22','美食'],
+      ['#27ae60','景點'],
+      ['#95a5a6','移動']
+    ];
+    d.innerHTML='<b style="font-size:13px;margin-bottom:4px;display:block">圖例</b>'+legendItems.map(function(pair){return '<span style="display:inline-flex;align-items:center;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:'+pair[0]+';display:inline-block;margin-right:4px"></span>'+pair[1]+'</span>'}).join('');
+    return d;
+  };
+  legend.addTo(mo);
+  mapReady=true;
+}
+
+function mf(day,btn){
+  document.querySelectorAll('.map-ctrl button').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(day==='all'){
+    markers.forEach(function(m){if(!mo.hasLayer(m))mo.addLayer(m)});
+    if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});
+  } else {
+    markers.forEach(function(m){
+      if(m.pd.d===day){if(!mo.hasLayer(m))mo.addLayer(m)} else mo.removeLayer(m);
+    });
+    var b=dayBoundsMap[day];
+    if(b&&b.isValid())mo.fitBounds(b,{padding:[30,30],maxZoom:16});
+  }
+}
+</script>
+</body>
+</html>

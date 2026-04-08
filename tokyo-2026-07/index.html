@@ -1,0 +1,2503 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>東京公仔 × 素食散策</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23f5f5f5'/><text x='90' y='130' font-size='120' text-anchor='middle'>🗼</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='16' y='26' font-size='28' text-anchor='middle'>🗼</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#333}
+
+.sticky-header{position:sticky;top:0;z-index:200}
+.top-bar{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:14px 20px 10px;text-align:center;position:relative}
+.top-bar h1{font-size:18px;font-weight:600}
+.top-bar p{font-size:12px;opacity:.85;margin-top:2px}
+.back-home{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.85);text-decoration:none;font-size:22px;line-height:1;padding:4px;border-radius:6px;transition:.15s}
+.back-home:hover{color:#fff;background:rgba(255,255,255,.12)}
+.top-legend{display:flex;justify-content:center;gap:12px;margin-top:8px;font-size:11px;opacity:.8;flex-wrap:wrap}
+
+.tab-nav{display:flex;background:#fff;border-bottom:1px solid #ddd}
+.tab-btn{flex:1;padding:10px;border:none;background:#fff;font-size:13px;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;color:#666;transition:.2s}
+.tab-btn.active{color:#1a73e8;border-bottom-color:#1a73e8}
+
+/* (legend strip moved into top-bar as .top-legend) */
+
+/* Itinerary */
+#itin{display:none;padding-bottom:30px}
+#itin.active{display:block}
+
+.day-sec{margin:16px 12px 0}
+.day-hdr{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-size:15px;font-weight:600}
+.day-hdr .sub{font-size:12px;opacity:.8;margin-top:2px;font-weight:400}
+.day-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+
+/* Place card - entire thing clickable */
+a.place{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit;transition:background .12s;cursor:pointer}
+a.place:last-child{border-bottom:none}
+a.place:hover{background:#f0f6ff}
+a.place:active{background:#e3edfa}
+
+.pc{flex:1;min-width:0}
+.pc-time{font-size:12px;color:#1a5276;font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}
+.pc-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.pc-note{font-size:12px;color:#666;line-height:1.5}
+.pc-user-note{font-size:12px;color:#1a73e8;line-height:1.5;margin-top:2px;font-style:italic}
+.arrow{color:#bbb;font-size:16px;margin-top:3px;flex-shrink:0}
+
+/* Place edit button */
+.place-edit-btn{width:32px;height:32px;border:none;background:none;color:#bbb;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:.15s;text-decoration:none}
+.place-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.place-edit-btn.has-note{color:#1a73e8}
+
+/* Place note editor */
+.place-note-editor{padding:8px 14px;background:#fafbfc;border-bottom:1px solid #f0f0f0;display:none}
+.place-note-editor textarea{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none;box-sizing:border-box}
+.place-note-editor textarea:focus{border-color:#1a73e8}
+.place-note-editor button{margin-top:6px;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+
+/* Travel segment between places */
+.travel-seg{display:flex;flex-direction:column;gap:2px;padding:6px 14px 6px 28px;background:#fafbfc;border-bottom:1px solid #f0f0f0;font-size:11px;color:#888}
+.travel-seg .seg-main{display:flex;align-items:center;gap:8px}
+.travel-seg .seg-icon{font-size:14px}
+.travel-seg .seg-line{flex:1;height:1px;background:#e0e0e0}
+.travel-seg .seg-info{white-space:nowrap;color:#555;font-weight:500}
+.travel-seg .seg-transit{display:flex;flex-direction:column;gap:2px;padding:2px 0 2px 22px;font-size:10px;color:#666}
+.travel-seg .seg-transit-step{display:flex;align-items:center;gap:5px;line-height:1.5}
+.travel-seg .seg-transit-line{background:#1a73e8;color:#fff;padding:1px 6px;border-radius:8px;font-weight:600;font-size:9px;white-space:nowrap}
+.travel-seg .seg-transit-line.bus{background:#0d7a3e}
+.travel-seg .seg-transit-line.rail{background:#1a5276}
+.travel-seg .seg-transit-stops{color:#555}
+.travel-seg .seg-transit-time{color:#999;margin-left:auto;white-space:nowrap}
+
+/* Map */
+#map-panel{display:none}
+#map-panel.active{display:block}
+#map{width:100%;height:calc(100vh - 135px)}
+.map-ctrl{display:flex;gap:5px;padding:8px 10px;background:#fff;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:0;z-index:150;border-bottom:1px solid #ddd}
+.map-ctrl button{padding:4px 10px;border:1.5px solid #ddd;border-radius:14px;background:#fff;font-size:11px;cursor:pointer;white-space:nowrap;transition:.2s}
+.map-ctrl button.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+
+/* Checklist tab */
+#checklist{display:none;padding:16px 12px 30px}
+#checklist.active{display:block}
+.cl-sec{margin-bottom:20px}
+.cl-hdr{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:10px 10px 0 0;font-size:15px;font-weight:600;cursor:pointer;-webkit-user-select:none;user-select:none}
+.cl-hdr .cl-emoji{font-size:18px}
+.cl-hdr .cl-arrow{margin-left:auto;font-size:12px;transition:transform .2s}
+.cl-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+.cl-body.collapsed{display:none}
+.cl-item{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-bottom:1px solid #f0f0f0;transition:background .12s;-webkit-user-select:none;user-select:none}
+.cl-item:hover{background:#f8f9fa}
+.cl-item.checked{opacity:.55}
+.cl-item.checked .cl-label{text-decoration:line-through}
+.cl-check{width:20px;height:20px;border:2px solid #ccc;border-radius:5px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:13px;color:#fff;background:#fff;cursor:pointer}
+.cl-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.cl-info{flex:1;min-width:0}
+.cl-label{font-size:13px;font-weight:500;color:#333}
+.cl-hint{font-size:11px;color:#999;margin-top:2px;line-height:1.4}
+.cl-meta{font-size:11px;color:#888;margin-top:3px;line-height:1.4}
+.cl-del{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:16px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-del:hover{color:#e74c3c;background:#fdecea}
+/* Pencil edit button - same as del but blue on hover */
+.cl-edit-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.cl-progress{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #eee}
+.cl-bar{flex:1;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.cl-bar-fill{height:100%;background:linear-gradient(90deg,#27ae60,#2ecc71);border-radius:3px;transition:width .3s}
+.cl-pct{font-size:11px;color:#888;white-space:nowrap}
+.cl-add{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px dashed #ddd;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s}
+.cl-add:hover{background:#f0f6ff}
+.cl-add-icon{font-size:18px;line-height:1}
+.cl-add-form{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-top:1px dashed #ddd}
+.cl-add-form input,.cl-add-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;box-sizing:border-box}
+.cl-add-form input:focus,.cl-add-form textarea:focus{border-color:#1a73e8}
+.cl-add-form .cl-add-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-add-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-add-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-add-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form{padding:10px 14px;border-bottom:1px solid #f0f0f0;background:#fafbfc}
+.cl-edit-form input,.cl-edit-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;margin-bottom:6px;box-sizing:border-box;-webkit-appearance:none;appearance:none;min-height:44px}
+.cl-edit-form input:focus,.cl-edit-form textarea:focus{border-color:#1a73e8}
+.cl-edit-form .cl-edit-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-edit-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-edit-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-edit-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form .cl-edit-hint{font-size:12px;color:#999}
+
+/* ===== Packing section - TREK style ===== */
+.pk-card{background:#fff;border-radius:14px;border:1px solid #e8e8e8;margin-bottom:8px;overflow:visible}
+.pk-card-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.pk-card-hdr.open{border-bottom:1px solid #e8e8e8}
+.pk-chevron{font-size:10px;color:#999;transition:transform .2s;flex-shrink:0;width:14px;text-align:center}
+.pk-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pk-cat-name{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#666;flex:1;min-width:0}
+.pk-count{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:#f0f0f0;color:#888;flex-shrink:0}
+.pk-count.all-done{background:rgba(22,163,74,0.12);color:#16a34a}
+.pk-menu-btn{width:28px;height:28px;border:none;background:none;color:#999;font-size:16px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.pk-menu-btn:hover{background:#f0f0f0;color:#666}
+.pk-card-body{overflow:hidden}
+.pk-card-body.collapsed{display:none}
+.pk-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;position:relative;transition:background .12s}
+.pk-item:hover{background:#f8f9fa}
+.pk-item.checked .pk-name{opacity:.55;text-decoration:line-through}
+.pk-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.pk-name{flex:1;font-size:13.5px;min-width:0}
+.pk-edit-input{flex:1;font-size:13.5px;padding:2px 8px;border-radius:6px;border:1px solid #1a73e8;outline:none;font-family:inherit;box-sizing:border-box}
+.pk-actions{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity .12s}
+.pk-item:hover .pk-actions{opacity:1}
+@media(max-width:767px){.pk-actions{opacity:1!important}}
+.pk-act-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;min-height:44px}
+.pk-act-btn:hover{color:#1a73e8;background:#e8f0fe}
+.pk-act-btn.del:hover{color:#e74c3c;background:#fdecea}
+.pk-inline-add{display:flex;align-items:center;gap:8px;padding:6px 10px;color:#1a73e8;font-size:13px;cursor:pointer;transition:background .12s;border-radius:0 0 14px 14px}
+.pk-inline-add:hover{background:#f0f6ff}
+.pk-inline-add-form{display:flex;align-items:center;gap:6px;padding:6px 10px}
+.pk-inline-add-form input{flex:1;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13.5px;outline:none;font-family:inherit}
+.pk-inline-add-form input:focus{border-color:#1a73e8}
+.pk-inline-add-form button{width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;min-height:44px}
+.pk-inline-add-form .pk-add-ok{background:#1a73e8;color:#fff}
+.pk-inline-add-form .pk-add-cancel{background:#f0f0f0;color:#666}
+
+/* Packing dropdown menu */
+.pk-dropdown{display:none;position:absolute;top:100%;right:0;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:100;min-width:140px;overflow:hidden}
+.pk-dropdown.open{display:block}
+.pk-dropdown button{display:block;width:100%;padding:10px 14px;border:none;background:none;text-align:left;font-size:13px;cursor:pointer;font-family:inherit;color:#333}
+.pk-dropdown button:hover{background:#f0f6ff}
+.pk-dropdown button.danger{color:#e74c3c}
+.pk-dropdown button.danger:hover{background:#fdecea}
+
+/* Add category button */
+.pk-add-cat{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s;border-radius:10px;margin-top:4px}
+.pk-add-cat:hover{background:#f0f6ff}
+.pk-add-cat-form{display:flex;align-items:center;gap:6px;padding:10px 14px;margin-top:4px}
+.pk-add-cat-form input{flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;outline:none;font-family:inherit}
+.pk-add-cat-form input:focus{border-color:#1a73e8}
+.pk-add-cat-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.pk-add-cat-form .pk-btn-ok{background:#1a73e8;color:#fff}
+.pk-add-cat-form .pk-btn-cancel{background:#f0f0f0;color:#666}
+
+/* Info */
+#info{display:none;padding:16px 12px 30px}
+#info.active{display:block}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{font-size:15px;font-weight:600;color:#1a5276;margin-bottom:8px}
+.card p{font-size:13px;line-height:1.7;color:#555}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:7px 10px;text-align:left;border-bottom:1px solid #eee}
+.tbl th{background:#f8f9fa;font-weight:600;color:#1a5276}
+.tbl .total{font-weight:700;color:#1a73e8}
+.cw-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.cw-tbl th,.cw-tbl td{padding:5px 7px;text-align:left;border-bottom:1px solid #eee;vertical-align:top}
+.cw-tbl th{background:#e8f0fe;font-weight:600;color:#1a5276;white-space:nowrap}
+
+/* Floating notes button */
+.notes-fab{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:300;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s}
+.notes-fab:hover{transform:scale(1.08);box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.notes-panel{display:none;position:fixed;bottom:80px;right:16px;width:320px;max-width:calc(100vw - 32px);max-height:60vh;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:300;overflow:hidden;display:flex;flex-direction:column}
+.notes-panel:not(.open){display:none}
+.notes-panel.open{display:flex}
+.notes-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;font-size:14px;font-weight:600;flex-shrink:0}
+.notes-panel-hdr button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.8;transition:opacity .15s}
+.notes-panel-hdr button:hover{opacity:1}
+.notes-panel textarea{width:100%;height:200px;border:none;padding:12px 16px;font-size:13px;font-family:inherit;line-height:1.6;resize:vertical;outline:none;color:#333;flex:1;overflow-y:auto}
+.notes-panel textarea::placeholder{color:#bbb}
+
+/* Date badge for reservations */
+.res-date-badge{font-size:11px;color:#1a73e8;background:#e8f0fe;padding:2px 6px;border-radius:4px;margin-left:6px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="sticky-header">
+<div class="top-bar">
+  <a href="../" class="back-home" title="返回首頁">←</a>
+  <h1>東京公仔 × 素食散策</h1>
+  <p>2026 七月 ｜ 七天六夜</p>
+  <div class="top-legend">
+    <span>🏨 住宿</span>
+    <span>🍜 美食</span>
+    <span>📍 景點</span>
+    <span>☕ 飲品</span>
+    <span>🚊 交通</span>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="sw('itin',this)">行程</button>
+  <button class="tab-btn" onclick="sw('map-panel',this)">地圖</button>
+  <button class="tab-btn" onclick="sw('checklist',this)">清單</button>
+  <button class="tab-btn" onclick="sw('info',this)">實用資訊</button>
+</div>
+</div><!-- /sticky-header -->
+
+<!-- ==================== 行程 TAB ==================== -->
+<div id="itin" class="active">
+
+
+
+<!-- ===== DAY 1 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 1 — 抵達東京 × 淺草晴空塔<div class="sub">上野→淺草→押上</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=MIMARU%20Tokyo%20Ueno%20EAST%2C%20Tokyo%2C%20Japan&query_place_id=ChIJNzPzFlaPGGARy9dNXr557qY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🏨 MIMARU TOKYO UENO EAST</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>Check-in，公寓式飯店，2-4 人房附廚房</div>
+    <div class="pc-user-note" id="pn-1-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 2.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%B5%85%E8%8D%89%E5%AF%BA%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ8T1GpMGOGGARDYGSgpooDWw" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Sensō-ji</div>
+    <div class="pc-note"><span class="pc-time">16:30</span>仲見世通小吃：人形燒、煎餅（蛋奶素 OK）</div>
+    <div class="pc-user-note" id="pn-1-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">7 分鐘 ｜ 1.7 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E3%82%B9%E3%82%AB%E3%82%A4%E3%83%84%E3%83%AA%E3%83%BC%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ35ov0dCOGGARKvdDH7NPHX0" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Tokyo Skytree</div>
+    <div class="pc-note"><span class="pc-time">19:00</span>夜景觀景台 + Solamachi 商場覓食</div>
+    <div class="pc-user-note" id="pn-1-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,2)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 2 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 2 — 上野文化散步 × 秋葉原公仔<div class="sub">上野→秋葉原</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E4%B8%8A%E9%87%8E%E6%81%A9%E8%B3%9C%E5%85%AC%E5%9C%92%2C%20Tokyo%2C%20Japan&query_place_id=ChIJw2qQRZuOGGARWmROEiM2y7E" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Ueno Park</div>
+    <div class="pc-note"><span class="pc-time">08:30</span>早晨散步避暑，綠意盎然</div>
+    <div class="pc-user-note" id="pn-2-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">7 分鐘 ｜ 1.7 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E5%9B%BD%E7%AB%8B%E5%8D%9A%E7%89%A9%E9%A4%A8%2C%20Ueno%2C%20Tokyo%2C%20Japan&query_place_id=ChIJEX3XFIOOGGAR3XdJvRjWLyM" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Tokyo National Museum</div>
+    <div class="pc-note"><span class="pc-time">10:00</span>日本最大博物館，室內冷氣（週一公休）</div>
+    <div class="pc-user-note" id="pn-2-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">13 分鐘 ｜ 3.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Mandarake%20Complex%2C%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJm3WItR2MGGAR05t5cpt7U4w" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Mandarake Complex</div>
+    <div class="pc-note"><span class="pc-time">14:00</span>中古動漫公仔聖地，8 層樓</div>
+    <div class="pc-user-note" id="pn-2-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">6 分鐘 ｜ 0.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Radio%20Kaikan%2C%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ__-AdayOGGAR6EGPwvcpzTA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Akihabara Radio Kaikan</div>
+    <div class="pc-note"><span class="pc-time">15:30</span>多層公仔/模型商場</div>
+    <div class="pc-user-note" id="pn-2-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">8 分鐘 ｜ 0.6 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%A7%8B%E8%91%89%E5%8E%9F%E3%82%AC%E3%83%81%E3%83%A3%E3%83%9D%E3%83%B3%E4%BC%9A%E9%A4%A8%2C%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJBztW3x2MGGARadHYl5vTEK0" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Akihabara Gachapon Hall</div>
+    <div class="pc-note"><span class="pc-time">16:30</span>大量扭蛋機集中地</div>
+    <div class="pc-user-note" id="pn-2-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 1.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%83%A8%E3%83%89%E3%83%90%E3%82%B7%E3%82%AB%E3%83%A1%E3%83%A9%20%E3%83%9E%E3%83%AB%E3%83%81%E3%83%A1%E3%83%87%E3%82%A3%E3%82%A2Akiba%2C%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJGU_M2aeOGGARdnOLcMYXuXs" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Yodobashi Akiba</div>
+    <div class="pc-note"><span class="pc-time">19:30</span>超大型電器免稅店，9 層樓</div>
+    <div class="pc-user-note" id="pn-2-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,5)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 3 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 3 — 築地早市 × 秋葉原公仔 Part 2<div class="sub">築地→東京站→秋葉原</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%AF%89%E5%9C%B0%E5%A0%B4%E5%A4%96%E5%B8%82%E5%A0%B4%2C%20Tokyo%2C%20Japan&query_place_id=ChIJW2cLzSGLGGARXAKXv6EkbqI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Fish Market Tsukiji Outer Market</div>
+    <div class="pc-note"><span class="pc-time">08:00</span>場外市場早市，玉子燒等蛋奶素小吃</div>
+    <div class="pc-user-note" id="pn-3-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">9 分鐘 ｜ 2.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=T%27s%20TanTan%2C%20Tokyo%20Station%2C%20Japan&query_place_id=ChIJtTLL9fuLGGARm6IP54k3xn4" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 T's Tantan</div>
+    <div class="pc-note"><span class="pc-time">11:00</span>知名素食拉麵，東京站內</div>
+    <div class="pc-user-note" id="pn-3-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">4 分鐘 ｜ 0.3 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E3%82%AD%E3%83%A3%E3%83%A9%E3%82%AF%E3%82%BF%E3%83%BC%E3%82%B9%E3%83%88%E3%83%AA%E3%83%BC%E3%83%88%2C%20Tokyo%20Station%2C%20Japan&query_place_id=ChIJGeYlX_mLGGARx_4HVNDXOxA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Tokyo Character Street</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>東京站地下街，各 IP 官方商店</div>
+    <div class="pc-user-note" id="pn-3-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 2.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=AmiAmi%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJPR3Mpx2MGGARl5yyxi5j97k" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 amiami Akihabara Figure Tower</div>
+    <div class="pc-note"><span class="pc-time">13:30</span>新品公仔大型店</div>
+    <div class="pc-user-note" id="pn-3-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">3 分鐘 ｜ 0.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Kotobukiya%20Akihabara%2C%20Tokyo%2C%20Japan&query_place_id=ChIJd138lh2MGGARQ1jRla0xMQ4" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 AKIHABARA KOTOBUKIYA</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>壽屋直營，限定版公仔</div>
+    <div class="pc-user-note" id="pn-3-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">4 分鐘 ｜ 0.3 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%83%89%E3%83%B3%E3%83%BB%E3%82%AD%E3%83%9B%E3%83%BC%E3%83%86%20%E7%A7%8B%E8%91%89%E5%8E%9F%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ7S15lB2MGGARvsUPQb9by7c" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Don Quijote Akihabara</div>
+    <div class="pc-note"><span class="pc-time">19:30</span>驚安殿堂，電器 + 免稅，開到深夜</div>
+    <div class="pc-user-note" id="pn-3-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,5)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 4 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 4 — 原宿潮流 × 渋谷夕陽<div class="sub">原宿→表參道→渋谷</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%98%8E%E6%B2%BB%E7%A5%9E%E5%AE%AE%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ5SZMmreMGGARcz8QSTiJyo8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Meiji Jingu</div>
+    <div class="pc-note"><span class="pc-time">08:30</span>森林神社，早晨涼爽散步</div>
+    <div class="pc-user-note" id="pn-4-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 1.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%AB%B9%E4%B8%8B%E9%80%9A%E3%82%8A%2C%20Harajuku%2C%20Tokyo%2C%20Japan&query_place_id=ChIJlVne8bqMGGARtX5O6ojMvsI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Takeshita Street</div>
+    <div class="pc-note"><span class="pc-time">10:30</span>潮流街 + 可麗餅小吃（蛋奶素 OK）</div>
+    <div class="pc-user-note" id="pn-4-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">4 分鐘 ｜ 1.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=AFURI%20Harajuku%2C%20Tokyo%2C%20Japan&query_place_id=ChIJba17TbqMGGARFtDV6hkZbcs" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 AFURI Harajuku</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>柚子鹽素食拉麵</div>
+    <div class="pc-user-note" id="pn-4-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">9 分鐘 ｜ 2.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Kiddy%20Land%20Harajuku%2C%20Tokyo%2C%20Japan&query_place_id=ChIJu1uP9aOMGGARiZH5QxSqDm0" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Kiddy Land</div>
+    <div class="pc-note"><span class="pc-time">13:30</span>經典玩具/公仔雜貨店</div>
+    <div class="pc-user-note" id="pn-4-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">8 分鐘 ｜ 1.8 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=SHIBUYA%20SKY%2C%20Shibuya%20Scramble%20Square%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ4Rr2JWiLGGARcyRSHuZ-9G8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Shibuya Sky</div>
+    <div class="pc-note"><span class="pc-time">17:00</span>屋頂觀景台，夕陽渋谷全景</div>
+    <div class="pc-user-note" id="pn-4-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">9 分鐘 ｜ 0.6 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=MEGA%E3%83%89%E3%83%B3%E3%83%BB%E3%82%AD%E3%83%9B%E3%83%BC%E3%83%86%E6%B8%8B%E8%B0%B7%E6%9C%AC%E5%BA%97%2C%20Tokyo%2C%20Japan&query_place_id=ChIJr4J6pKmMGGARdQLOgrzToH4" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 MEGA Don Quijote</div>
+    <div class="pc-note"><span class="pc-time">19:30</span>渋谷大型免稅店，開到深夜</div>
+    <div class="pc-user-note" id="pn-4-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(4,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-4-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(4,5)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 5 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 5 — 新宿庭園 × 中野挖寶<div class="sub">新宿→中野</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%96%B0%E5%AE%BF%E5%BE%A1%E8%8B%91%2C%20Tokyo%2C%20Japan&query_place_id=ChIJPyOTG8KMGGARh_IXobWxHmo" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Shinjuku Gyoen National Garden</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>大型日式庭園散步（週一公休，日 ✅）</div>
+    <div class="pc-user-note" id="pn-5-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">13 分鐘 ｜ 4.2 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%83%8A%E3%82%BF%E3%83%A9%E3%82%B8%20%E6%96%B0%E5%AE%BF%2C%20Tokyo%2C%20Japan&query_place_id=ChIJ1WqcdKiMGGARDBlhREtS9IE" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Milan Nataraj</div>
+    <div class="pc-note"><span class="pc-time">11:30</span>印度素食餐廳，平價午餐</div>
+    <div class="pc-user-note" id="pn-5-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">26 分鐘 ｜ 8.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Nakano%20Broadway%2C%20Tokyo%2C%20Japan&query_place_id=ChIJg-7dspDyGGARvvDv4E5-tuE" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Nakano Broadway</div>
+    <div class="pc-note"><span class="pc-time">14:00</span>中古公仔挖寶天堂，Mandarake 本店在此</div>
+    <div class="pc-user-note" id="pn-5-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">15 分鐘 ｜ 4.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%83%89%E3%83%B3%E3%83%BB%E3%82%AD%E3%83%9B%E3%83%BC%E3%83%86%20%E6%96%B0%E5%AE%BF%E6%AD%8C%E8%88%9E%E4%BC%8E%E7%94%BA%E5%BA%97%2C%20Tokyo%2C%20Japan&query_place_id=ChIJPbnq29mMGGARKCnQB1AFg4U" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Don Quijote Shinjuku Kabukicho</div>
+    <div class="pc-note"><span class="pc-time">19:30</span>歌舞伎町免稅店，電器 + 日用品</div>
+    <div class="pc-user-note" id="pn-5-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(5,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-5-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(5,3)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 6 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 6 — 台場鋼彈 × 池袋動漫聖地<div class="sub">台場→池袋→新宿</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=The%20Gundam%20Base%20Tokyo%2C%20DiverCity%20Tokyo%20Plaza%2C%20Odaiba%2C%20Tokyo%2C%20Japan&query_place_id=ChIJIy1S0_mJGGAR2d0UgvPKUPg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 The Gundam Base Tokyo</div>
+    <div class="pc-note"><span class="pc-time">11:00</span>DiverCity 內，實物大鋼彈 + 模型旗艦店</div>
+    <div class="pc-user-note" id="pn-6-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">29 分鐘 ｜ 19.9 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Animate%20Ikebukuro%20Main%20Store%2C%20Tokyo%2C%20Japan&query_place_id=ChIJi0VhQ2-NGGARGsbajebyPVA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 animate Ikebukuro Flagship Store</div>
+    <div class="pc-note"><span class="pc-time">15:00</span>全球最大動漫周邊旗艦店</div>
+    <div class="pc-user-note" id="pn-6-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">10 分鐘 ｜ 4.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%82%AC%E3%82%B7%E3%83%A3%E3%83%9D%E3%83%B3%E3%81%AE%E3%83%87%E3%83%91%E3%83%BC%E3%83%88%E6%B1%A0%E8%A2%8B%20Sunshine%20City%2C%20Tokyo%2C%20Japan&query_place_id=ChIJAX6RgpONGGAR5hVdlYCQINI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Gashapon Ikebukuro Main Store</div>
+    <div class="pc-note"><span class="pc-time">16:30</span>萬代官方，3000+ 台扭蛋機</div>
+    <div class="pc-user-note" id="pn-6-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">6 分鐘 ｜ 1.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%83%93%E3%83%83%E3%82%AF%E3%82%AB%E3%83%A1%E3%83%A9%20%E6%B1%A0%E8%A2%8B%E6%9C%AC%E5%BA%97%2C%20Tokyo%2C%20Japan&query_place_id=ChIJXzAaDWeNGGARP_PwfI4ooXA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 BicCamera Ikebukuro Main Store</div>
+    <div class="pc-note"><span class="pc-time">19:00</span>大型電器免稅店</div>
+    <div class="pc-user-note" id="pn-6-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">17 分鐘 ｜ 5.0 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Ain%20Soph%20Journey%2C%20Asakusa%2C%20Taito%2C%20Tokyo%2C%20Japan&query_place_id=ChIJyUynodyMGGARfdwk4A8pub8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 Ain Soph. Journey Shinjuku</div>
+    <div class="pc-note"><span class="pc-time">20:30</span>素食晚餐/鬆餅，池袋→新宿 JR 10 min</div>
+    <div class="pc-user-note" id="pn-6-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(6,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-6-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(6,4)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 7 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 7 — 銀座素食拉麵 × 回程<div class="sub">銀座→機場</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E3%82%BD%E3%83%A9%E3%83%8E%E3%82%A4%E3%83%AD%20Japanese%20Soba%20Noodles%2C%20Tokyo%2C%20Japan&query_place_id=ChIJB2PMTgCLGGARaXHroTM0th8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 SORANOIRO GINZA MAIN STORE</div>
+    <div class="pc-note"><span class="pc-time">11:00</span>蔬菜素食拉麵 brunch</div>
+    <div class="pc-user-note" id="pn-7-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚗</span>
+    <span class="seg-info">11 分鐘 ｜ 5.6 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=MIMARU%20Tokyo%20Ueno%20EAST%2C%20Tokyo%2C%20Japan&query_place_id=ChIJNzPzFlaPGGARy9dNXr557qY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🏨 MIMARU TOKYO UENO EAST</div>
+    <div class="pc-note"><span class="pc-time">13:00</span>Check-out，取行李 → 前往機場</div>
+    <div class="pc-user-note" id="pn-7-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(7,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-7-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(7,1)">儲存</button>
+</div>
+
+
+</div></div>
+
+</div>
+
+<!-- ==================== 地圖 TAB ==================== -->
+<div id="map-panel">
+  <div class="map-ctrl" id="mapBtns">
+    <button class="active" onclick="mf('all',this)">全部</button>
+    
+    <button onclick="mf('d1',this)">Day 1</button>
+    
+    <button onclick="mf('d2',this)">Day 2</button>
+    
+    <button onclick="mf('d3',this)">Day 3</button>
+    
+    <button onclick="mf('d4',this)">Day 4</button>
+    
+    <button onclick="mf('d5',this)">Day 5</button>
+    
+    <button onclick="mf('d6',this)">Day 6</button>
+    
+    <button onclick="mf('d7',this)">Day 7</button>
+    
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- ==================== 清單 TAB ==================== -->
+<div id="checklist">
+  <div class="cl-sec" id="cl-todo"></div>
+  <div class="cl-sec" id="cl-reservations"></div>
+  <div class="cl-sec" id="cl-packing"></div>
+</div>
+
+<!-- ==================== 實用資訊 TAB ==================== -->
+<div id="info">
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px;overflow:hidden">
+  <span style="font-size:14px;font-weight:500;color:#1a5276;white-space:nowrap">📅 行程日曆</span>
+  <a href="calendar.ics" download="tokyo-2026-07.ics" style="flex-shrink:0;padding:8px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap">📥 下載 .ics</a>
+</div>
+
+  <div class="card">
+    <h3>預算概覽（每人）</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>項目</th>
+            
+            <th>預估（日幣）</th>
+            
+            <th>預估（台幣）</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>住宿 6 晚</td>
+              
+            
+              
+            <td>¥36,000-60,000</td>
+              
+            
+              
+            <td>~NT$7,200-12,000</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>交通（Suica）</td>
+              
+            
+              
+            <td>¥8,000-12,000</td>
+              
+            
+              
+            <td>~NT$1,600-2,400</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>餐飲 7 天</td>
+              
+            
+              
+            <td>¥25,000-35,000</td>
+              
+            
+              
+            <td>~NT$5,000-7,000</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>門票</td>
+              
+            
+              
+            <td>¥6,000</td>
+              
+            
+              
+            <td>~NT$1,200</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>公仔/電器購物</td>
+              
+            
+              
+            <td>依個人</td>
+              
+            
+              
+            <td>依個人</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+      <p style="margin-top:8px;font-size:12px;color:#888">基本開銷（不含購物）約 ¥75,000-113,000 / NT$15,000-22,600 per person（以 4 人分攤住宿計算）</p>
+      
+    
+  </div>
+
+  <div class="card">
+    <h3>交通</h3>
+    
+      <p>主要靠地鐵（Metro）+ JR 山手線。建議買 Suica 或 PASMO 交通 IC 卡，全線通用。機場到上野：成田→京成 Skyliner 約 41 分（¥2,520）或 Access Express 約 60 分（¥1,270）；羽田→京急線約 35 分（¥590）。市區內單程 ¥170-350。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>天氣（七月東京）</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>項目</th>
+            
+            <th>狀況</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>氣溫</td>
+              
+            
+              
+            <td>28-35°C，高溫多濕</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>降雨</td>
+              
+            
+              
+            <td>梅雨季尾聲，午後雷陣雨常見</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>建議</td>
+              
+            
+              
+            <td>帶摺疊傘、防曬、多補水</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+      <p style="margin-top:8px;font-size:12px;color:#888">戶外活動排早上或傍晚，中午進室內（公仔店/商場）避暑</p>
+      
+    
+  </div>
+
+  <div class="card">
+    <h3>素食在東京</h3>
+    
+      <p>日本傳統料理常用柴魚高湯，蛋奶素需注意。本行程已安排 5 間素食友善餐廳。便利商店（7-Eleven、FamilyMart）有稻荷壽司、納豆卷、蔬菜三明治等蛋奶素選項。點餐時可說「肉と魚を使わないでください」（請不要用肉和魚）。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>免稅購物須知</h3>
+    
+      <p>外國旅客在同一店舖同日消費滿 ¥5,000（未稅）可享免稅（10%）。需出示護照。Yodobashi、BIC Camera、Don Quijote 等大型店均支援免稅。公仔店（Mandarake、AmiAmi、Animate 等）也大多有免稅服務。免稅商品須在出境時帶出日本。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>實用 App</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>App</th>
+            
+            <th>用途</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Google Maps</td>
+              
+            
+              
+            <td>導航、查電車路線</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Suica App</td>
+              
+            
+              
+            <td>交通卡儲值（iPhone）</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>HappyCow</td>
+              
+            
+              
+            <td>找素食餐廳</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Payke</td>
+              
+            
+              
+            <td>掃條碼看商品中文說明</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+    
+  </div>
+
+</div>
+
+<!-- ==================== Floating Notes Button ==================== -->
+<button class="notes-fab" onclick="toggleNotes()" title="筆記">&#128221;</button>
+<div class="notes-panel" id="notesPanel">
+  <div class="notes-panel-hdr">
+    <span>&#128221; 旅行筆記</span>
+    <button onclick="toggleNotes()">&#215;</button>
+  </div>
+  <textarea id="notesArea" placeholder="在這裡記錄你的旅行筆記..."></textarea>
+</div>
+
+<script>
+// Tab switch
+function sw(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['itin','map-panel','checklist','info'].forEach(p=>document.getElementById(p).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='map-panel'&&!mapReady)initMap();
+}
+
+// ===== Notes =====
+const NOTES_KEY='trip-plan:tokyo-2026-07:notes';
+function toggleNotes(){
+  const panel=document.getElementById('notesPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    const area=document.getElementById('notesArea');
+    try{area.value=localStorage.getItem(NOTES_KEY)||''}catch(e){}
+    area.focus();
+  }
+}
+document.getElementById('notesArea').addEventListener('input',function(){
+  try{localStorage.setItem(NOTES_KEY,this.value)}catch(e){}
+});
+
+// Click outside to close notes panel
+document.addEventListener('click',function(e){
+  var panel=document.getElementById('notesPanel');
+  var fab=document.querySelector('.notes-fab');
+  if(panel.classList.contains('open')&&!panel.contains(e.target)&&!fab.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+// ===== Place Notes =====
+const PLACE_NOTES_KEY='trip-plan:tokyo-2026-07:place-notes';
+function getPlaceNotes(){try{var s=localStorage.getItem(PLACE_NOTES_KEY);if(s)return JSON.parse(s)}catch(e){}return{}}
+function savePlaceNotes(data){try{localStorage.setItem(PLACE_NOTES_KEY,JSON.stringify(data))}catch(e){}}
+
+function togglePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var isOpen=editor.style.display==='block';
+  // Close all editors first
+  document.querySelectorAll('.place-note-editor').forEach(function(el){el.style.display='none'});
+  if(!isOpen){
+    editor.style.display='block';
+    var notes=getPlaceNotes();
+    var key=day+'-'+idx;
+    var ta=editor.querySelector('textarea');
+    ta.value=notes[key]||'';
+    ta.focus();
+  }
+}
+
+function savePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var ta=editor.querySelector('textarea');
+  var val=ta.value.trim();
+  var notes=getPlaceNotes();
+  var key=day+'-'+idx;
+  if(val){
+    notes[key]=val;
+  } else {
+    delete notes[key];
+  }
+  savePlaceNotes(notes);
+  editor.style.display='none';
+  // Update display
+  var dispEl=document.getElementById('pn-'+day+'-'+idx);
+  if(dispEl){dispEl.textContent=val}
+  // Update pencil icon
+  var editBtn=editor.previousElementSibling;
+  if(editBtn){
+    var pencilBtn=editBtn.querySelector('.place-edit-btn');
+    if(!pencilBtn){
+      // The editBtn IS the <a>, look within it
+      pencilBtn=editBtn.querySelector('.place-edit-btn');
+    }
+  }
+  updatePlaceNoteIndicators();
+}
+
+function updatePlaceNoteIndicators(){
+  var notes=getPlaceNotes();
+  document.querySelectorAll('.place-edit-btn').forEach(function(btn){
+    // Get day,idx from the sibling editor
+    var onclick=btn.getAttribute('onclick');
+    var match=onclick&&onclick.match(/togglePlaceNote\((\d+),(\d+)\)/);
+    if(match){
+      var key=match[1]+'-'+match[2];
+      if(notes[key]){
+        btn.classList.add('has-note');
+      } else {
+        btn.classList.remove('has-note');
+      }
+    }
+  });
+  // Also update display text
+  Object.keys(notes).forEach(function(key){
+    var el=document.getElementById('pn-'+key);
+    if(el)el.textContent=notes[key];
+  });
+}
+
+// Init place notes on load
+document.addEventListener('DOMContentLoaded',function(){updatePlaceNoteIndicators()});
+
+// ===== Checklist: three sections =====
+const defaultReservations=[{"label": "MIMARU Tokyo Ueno EAST \u4f4f\u5bbf", "note": "7/15 check-in ~ 7/21 check-out\uff0c2-4 \u4eba\u623f\uff0c\u9700\u63d0\u524d\u9810\u8a02\u78ba\u8a8d"}, {"label": "\u6771\u4eac\u6674\u7a7a\u5854 Skytree \u9580\u7968", "note": "7/15 \u665a\u9593\u5834\uff0c\u5efa\u8b70\u7dda\u4e0a\u9810\u8cfc\u907f\u514d\u6392\u968a\uff08\u5929\u671b\u7532\u677f \u00a52,100\uff09"}, {"label": "Shibuya Sky \u9580\u7968", "note": "7/18 \u4e0b\u5348\u5834\uff0c\u7dda\u4e0a\u9810\u8cfc \u00a52,000\uff0c\u73fe\u5834 \u00a52,500"}, {"label": "\u6771\u4eac\u570b\u7acb\u535a\u7269\u9928 \u9580\u7968", "note": "7/16\uff0c\u4e00\u822c \u00a51,000\uff0c\u53ef\u73fe\u5834\u8cfc\u7968\u6216\u7dda\u4e0a\u9810\u8cfc"}, {"label": "\u65b0\u5bbf\u5fa1\u82d1 \u9580\u7968", "note": "7/19\uff0c\u5165\u5712 \u00a5500\uff0c\u53ef\u73fe\u5834\u8cfc\u7968"}];
+const defaultPacking=[{"category": "\u8b49\u4ef6", "label": "\u8b77\u7167"}, {"category": "\u8b49\u4ef6", "label": "\u8b77\u7167\u5f71\u672c"}, {"category": "\u8b49\u4ef6", "label": "\u98ef\u5e97\u8a02\u623f\u78ba\u8a8d\u4fe1"}, {"category": "\u8b49\u4ef6", "label": "\u666f\u9ede\u9580\u7968\uff08Skytree\u3001Shibuya Sky\uff09"}, {"category": "\u8b49\u4ef6", "label": "\u4f86\u56de\u6a5f\u7968"}, {"category": "\u76e5\u6d17", "label": "\u7259\u5237"}, {"category": "\u76e5\u6d17", "label": "\u7259\u818f"}, {"category": "\u76e5\u6d17", "label": "\u9632\u66ec\u4e73"}, {"category": "\u76e5\u6d17", "label": "\u522e\u9b0d\u5200"}, {"category": "\u96fb\u5b50", "label": "\u624b\u6a5f\u5145\u96fb\u5668"}, {"category": "\u96fb\u5b50", "label": "\u884c\u52d5\u96fb\u6e90"}, {"category": "\u96fb\u5b50", "label": "\u8033\u6a5f"}, {"category": "\u96fb\u5b50", "label": "\u76f8\u6a5f"}, {"category": "\u96fb\u5b50", "label": "\u842c\u7528\u8f49\u63a5\u982d\uff08\u65e5\u672c A \u578b\uff0c\u540c\u53f0\u7063\uff09"}, {"category": "\u91ab\u7642", "label": "\u6b62\u75db\u85e5"}, {"category": "\u91ab\u7642", "label": "\u8178\u80c3\u85e5"}, {"category": "\u8ca1\u52d9", "label": "\u65e5\u5e63\u73fe\u91d1 \u00a550,000-80,000"}, {"category": "\u8ca1\u52d9", "label": "\u4fe1\u7528\u5361"}, {"category": "\u8ca1\u52d9", "label": "Suica / PASMO \u4ea4\u901a\u5361"}, {"category": "\u5176\u4ed6", "label": "\u647a\u758a\u5098"}, {"category": "\u5176\u4ed6", "label": "\u647a\u758a\u884c\u674e\u888b\uff08\u88dd\u516c\u4ed4/\u96fb\u5668\u6230\u5229\u54c1\uff09"}, {"category": "\u5176\u4ed6", "label": "\u74b0\u4fdd\u8cfc\u7269\u888b"}, {"category": "\u5176\u4ed6", "label": "\u5c0f\u6bdb\u5dfe\uff08\u64e6\u6c57\u7528\uff09"}];
+const defaultTodo=[{"hint": "\u9700\u6709\u6548\u671f\u8d85\u904e\u56de\u7a0b\u65e5 6 \u500b\u6708", "label": "\u78ba\u8a8d\u8b77\u7167\u6709\u6548\u671f"}, {"hint": "MIMARU Ueno EAST\uff0c2-4 \u4eba\u623f\uff0c7/15-7/21", "label": "\u78ba\u8a8d\u98ef\u5e97\u8a02\u623f"}, {"hint": "\u6a5f\u5834\u6216\u8eca\u7ad9\u8cfc\u8cb7\uff0c\u53ef\u642d\u5730\u9435\u3001JR\u3001\u4fbf\u5229\u5546\u5e97\u4ed8\u6b3e", "label": "\u8cfc\u8cb7 Suica / PASMO \u4ea4\u901a\u5361"}, {"hint": "Google Maps \u6771\u4eac\u96e2\u7dda\u5730\u5716\uff0c\u907f\u514d\u6c92\u7db2\u8def\u6642\u8ff7\u8def", "label": "\u4e0b\u8f09\u96e2\u7dda\u5730\u5716"}, {"hint": "\u51fa\u767c\u524d\u4e00\u9031\u518d\u78ba\u8a8d T\u0027s TanTan\u3001AFURI\u3001Milan Nataraj\u3001Ain Soph\u3001Soranoiro \u7684\u71df\u696d\u72c0\u614b", "label": "\u78ba\u8a8d\u7d20\u98df\u9910\u5ef3\u71df\u696d\u6642\u9593"}, {"hint": "\u90e8\u5206\u5c0f\u5e97/\u626d\u86cb\u6a5f\u53ea\u6536\u73fe\u91d1\uff0c\u5efa\u8b70\u5e36 \u00a550,000-80,000", "label": "\u6e96\u5099\u65e5\u5e63\u73fe\u91d1"}, {"hint": "\u540c\u4e00\u5e97\u540c\u65e5\u6d88\u8cbb\u6eff \u00a55,000\uff08\u672a\u7a05\uff09\u53ef\u514d\u7a05\uff0c\u5e36\u8b77\u7167", "label": "\u78ba\u8a8d\u514d\u7a05\u689d\u4ef6"}, {"hint": "\u516c\u4ed4/\u96fb\u5668\u6230\u5229\u54c1\u9700\u8981\u7a7a\u9593\uff0c\u5efa\u8b70\u5e36\u647a\u758a\u884c\u674e\u888b", "label": "\u78ba\u8a8d\u884c\u674e\u7bb1\u7a7a\u9593"}, {"hint": "Skytree\u3001Shibuya Sky \u5efa\u8b70\u7dda\u4e0a\u8cb7\uff0c\u907f\u514d\u73fe\u5834\u6392\u968a", "label": "\u7dda\u4e0a\u9810\u8cfc\u666f\u9ede\u9580\u7968"}];
+
+const RES_KEY='trip-plan:tokyo-2026-07:reservations';
+const PACK_KEY='trip-plan:tokyo-2026-07:packing';
+const TODO_KEY='trip-plan:tokyo-2026-07:todo';
+const COLLAPSE_KEY='trip-plan:tokyo-2026-07:cl-collapse';
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;')}
+
+function lsGet(key,fallback){try{var s=localStorage.getItem(key);if(s)return JSON.parse(s)}catch(e){}return fallback}
+function lsSet(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch(e){}}
+
+function getCollapse(){return lsGet(COLLAPSE_KEY,{reservations:false,packing:false,todo:false})}
+function setCollapse(c){lsSet(COLLAPSE_KEY,c)}
+function toggleCollapse(sec){var c=getCollapse();c[sec]=!c[sec];setCollapse(c);renderAllCl()}
+
+// ---- Data migration for reservations ----
+function migrateRes(items){
+  return items.map(function(item){
+    if(item.platform||item.confirmation||item.amount||item.url){
+      var parts=[];
+      if(item.platform)parts.push('平台: '+item.platform);
+      if(item.confirmation)parts.push('確認碼: '+item.confirmation);
+      if(item.amount)parts.push('金額: '+item.amount);
+      if(item.url)parts.push('連結: '+item.url);
+      if(item.note)parts.push(item.note);
+      item.note=parts.join('\n');
+      delete item.platform;delete item.confirmation;delete item.amount;delete item.url;
+    }
+    return item;
+  });
+}
+
+// ---- Reservations (simplified - same as Todo but with date) ----
+function getRes(){
+  var data=lsGet(RES_KEY,defaultReservations.map(function(d){return Object.assign({},d,{done:false})}));
+  return migrateRes(data);
+}
+function saveRes(data){lsSet(RES_KEY,data)}
+
+var resEditIdx=-1;
+function renderRes(){
+  var el=document.getElementById('cl-reservations');
+  var items=getRes();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  var resSorted=items.map(function(item,i){return{item:item,idx:i}});
+  resSorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'reservations\')"><span class="cl-emoji">&#128197;</span> 訂位<span class="cl-arrow">'+(col.reservations?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.reservations?' collapsed':'')+'">';
+  resSorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    // Format date for badge
+    var dateBadge='';
+    if(item.date){
+      var dateStr=item.date;
+      // Try to show short format like "5/15"
+      var dm=dateStr.match(/(\d{1,2})[-\/](\d{1,2})$/);
+      if(dm){dateStr=parseInt(dm[1])+'/'+parseInt(dm[2])}
+      else{
+        var fullm=dateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+        if(fullm)dateStr=parseInt(fullm[2])+'/'+parseInt(fullm[3]);
+      }
+      dateBadge='<span class="res-date-badge">'+esc(dateStr)+'</span>';
+    }
+    if(resEditIdx===i){
+      // Edit mode
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="resToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info" onclick="event.stopPropagation()">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      // Edit form below
+      h+='<div class="cl-edit-form" id="res-edit-'+i+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div>';
+      h+='<input id="res-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">日期</div>';
+      h+='<input id="res-e-date-'+i+'" type="date" value="'+escAttr(item.date||'')+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">說明</div>';
+      h+='<textarea id="res-e-note-'+i+'" rows="3" style="resize:vertical">'+esc(item.note||'')+'</textarea>';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="resHideEdit()">取消</button><button class="cl-btn-ok" onclick="resSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      // Display mode: checkbox + label + date badge + pencil + trash
+      h+='<div class="cl-item '+ck+'" onclick="resToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="res-add-btn" onclick="resShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="res-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div><input id="res-input-label" placeholder="輸入訂位名稱..." onkeydown="if(event.key===\'Enter\')resAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="resHideAdd()">取消</button><button class="cl-btn-ok" onclick="resAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(resEditIdx>=0){var inp=document.getElementById('res-e-label-'+resEditIdx);if(inp)inp.focus()}
+}
+function resToggle(i){var d=getRes();d[i].done=!d[i].done;saveRes(d);renderRes()}
+function resDel(i){var d=getRes();d.splice(i,1);saveRes(d);resEditIdx=-1;renderRes()}
+function resShowAdd(){document.getElementById('res-add-btn').style.display='none';document.getElementById('res-add-form').style.display='flex';document.getElementById('res-input-label').focus()}
+function resHideAdd(){document.getElementById('res-add-btn').style.display='flex';document.getElementById('res-add-form').style.display='none';document.getElementById('res-input-label').value=''}
+function resAdd(){var v=document.getElementById('res-input-label').value.trim();if(!v)return;var d=getRes();d.push({label:v,done:false});saveRes(d);renderRes()}
+function resShowEdit(i){resEditIdx=(resEditIdx===i)?-1:i;renderRes()}
+function resHideEdit(){resEditIdx=-1;renderRes()}
+function resSaveEdit(i){
+  var label=document.getElementById('res-e-label-'+i).value.trim();
+  if(!label)return;
+  var d=getRes();
+  d[i].label=label;
+  d[i].date=document.getElementById('res-e-date-'+i).value.trim();
+  d[i].note=document.getElementById('res-e-note-'+i).value.trim();
+  saveRes(d);resEditIdx=-1;renderRes();
+}
+
+// ---- Packing (TREK-style category cards) ----
+var PACK_COLORS=['#3b82f6','#a855f7','#ec4899','#22c55e','#f97316','#06b6d4','#ef4444','#eab308','#8b5cf6','#14b8a6'];
+function catColor(cat,allCats){
+  var idx=allCats?allCats.indexOf(cat):-1;
+  if(idx>=0)return PACK_COLORS[idx%PACK_COLORS.length];
+  var h=0;for(var i=0;i<cat.length;i++)h=((h<<5)-h+cat.charCodeAt(i))|0;
+  return PACK_COLORS[Math.abs(h)%PACK_COLORS.length];
+}
+
+function getPack(){
+  var stored=lsGet(PACK_KEY,null);
+  if(stored===null||(Array.isArray(stored)&&stored.length===0&&defaultPacking.length>0)){
+    var fresh=defaultPacking.map(function(d){return Object.assign({},d,{done:false})});
+    savePack(fresh);
+    return fresh;
+  }
+  return stored;
+}
+function savePack(data){lsSet(PACK_KEY,data)}
+
+var packEditIdx=-1;
+var packOpenMenuCat=null;
+var packAddingCat=false;
+var packAddingItemCat=null; // which category is showing the inline add form
+var packCollapsed={}; // track collapsed categories
+
+function getPackCollapsed(){return lsGet(PACK_KEY+':collapsed',{})}
+function setPackCollapsed(data){lsSet(PACK_KEY+':collapsed',data)}
+
+function renderPack(){
+  var el=document.getElementById('cl-packing');
+  var items=getPack();
+  var col=getCollapse();
+
+  // Group by category
+  var groups={};var catOrder=[];
+  items.forEach(function(item,i){
+    var cat=item.category||'其他';
+    if(!groups[cat]){groups[cat]=[];catOrder.push(cat)}
+    groups[cat].push(Object.assign({},item,{_idx:i}));
+  });
+  // Move '其他' to end
+  var otherIdx=catOrder.indexOf('其他');
+  if(otherIdx>-1&&otherIdx<catOrder.length-1){catOrder.splice(otherIdx,1);catOrder.push('其他')}
+
+  var allCats=catOrder.filter(function(c){return c!=='其他'});
+  var catCollapsed=getPackCollapsed();
+
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'packing\')"><span class="cl-emoji">&#129523;</span> 行李清單<span class="cl-arrow">'+(col.packing?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-body'+(col.packing?' collapsed':'')+'" style="background:transparent;padding:4px 0">';
+
+  catOrder.forEach(function(cat){
+    var color=catColor(cat,allCats);
+    var catItems=groups[cat];
+    catItems.sort(function(a,b){return(a.done?1:0)-(b.done?1:0)});
+    var catDone=catItems.filter(function(it){return it.done}).length;
+    var isCollapsed=catCollapsed[cat]===true;
+    var allChecked=catItems.length>0&&catDone===catItems.length;
+
+    h+='<div class="pk-card">';
+    // Header
+    h+='<div class="pk-card-hdr'+(isCollapsed?'':' open')+'" onclick="packToggleCat(\''+escAttr(cat)+'\')">';
+    h+='<span class="pk-chevron">'+(isCollapsed?'&#9654;':'&#9660;')+'</span>';
+    h+='<span class="pk-dot" style="background:'+color+'"></span>';
+    h+='<span class="pk-cat-name">'+esc(cat)+'</span>';
+    h+='<span class="pk-count'+(allChecked?' all-done':'')+'">'+catDone+'/'+catItems.length+'</span>';
+    h+='<span class="pk-menu-btn" onclick="event.stopPropagation();packToggleMenu(\''+escAttr(cat)+'\')" style="position:relative">&#8943;';
+    if(packOpenMenuCat===cat){
+      h+='<div class="pk-dropdown open">';
+      h+='<button onclick="event.stopPropagation();packRenameCat(\''+escAttr(cat)+'\')">重新命名</button>';
+      h+='<button onclick="event.stopPropagation();packCheckAllCat(\''+escAttr(cat)+'\')">全部勾選</button>';
+      h+='<button onclick="event.stopPropagation();packUncheckAllCat(\''+escAttr(cat)+'\')">取消全部勾選</button>';
+      h+='<button class="danger" onclick="event.stopPropagation();packDelCat(\''+escAttr(cat)+'\')">刪除分類</button>';
+      h+='</div>';
+    }
+    h+='</span>';
+    h+='</div>';
+
+    // Body
+    h+='<div class="pk-card-body'+(isCollapsed?' collapsed':'')+'">';
+    catItems.forEach(function(item){
+      var i=item._idx;
+      var ck=item.done?'checked':'';
+      h+='<div class="pk-item '+ck+'" data-pack-idx="'+i+'" onclick="packToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<span class="pk-name">'+esc(item.label)+'</span>';
+      h+='<span class="pk-actions">';
+      h+='<button class="pk-act-btn" onclick="event.stopPropagation();packShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="pk-act-btn del" onclick="event.stopPropagation();packDel('+i+')" title="刪除">&#215;</button>';
+      h+='</span>';
+      h+='</div>';
+      if(packEditIdx===i){
+        h+='<div class="cl-edit-form">';
+        h+='<div style="font-size:12px;color:#888;margin-bottom:2px">物品名稱</div>';
+        h+='<input id="pk-edit-input-'+i+'" value="'+escAttr(item.label)+'">';
+        h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="packCancelEdit()">取消</button><button class="cl-btn-ok" onclick="packSaveEdit('+i+',document.getElementById(\'pk-edit-input-'+i+'\').value)">儲存</button></div>';
+        h+='</div>';
+      }
+    });
+
+    // Inline add
+    if(packAddingItemCat===cat){
+      h+='<div class="pk-inline-add-form" id="pk-add-form-'+escAttr(cat)+'">';
+      h+='<input id="pk-add-input-'+escAttr(cat)+'" placeholder="新增物品..." onkeydown="if(event.key===\'Enter\')packAddItem(\''+escAttr(cat)+'\');if(event.key===\'Escape\')packHideAddItem()">';
+      h+='<button class="pk-add-ok" onclick="packAddItem(\''+escAttr(cat)+'\')">+</button>';
+      h+='<button class="pk-add-cancel" onclick="packHideAddItem()">&#215;</button>';
+      h+='</div>';
+    } else {
+      h+='<div class="pk-inline-add" onclick="packShowAddItem(\''+escAttr(cat)+'\')"><span style="font-size:16px;margin-right:4px">+</span> 新增</div>';
+    }
+    h+='</div>'; // pk-card-body
+    h+='</div>'; // pk-card
+  });
+
+  // Add new category
+  if(packAddingCat){
+    h+='<div class="pk-add-cat-form" id="pk-add-cat-form">';
+    h+='<input id="pk-add-cat-input" placeholder="分類名稱..." onkeydown="if(event.key===\'Enter\')packAddCat();if(event.key===\'Escape\'){packAddingCat=false;renderPack()}">';
+    h+='<button class="pk-btn-ok" onclick="packAddCat()">新增</button>';
+    h+='<button class="pk-btn-cancel" onclick="packAddingCat=false;renderPack()">取消</button>';
+    h+='</div>';
+  } else {
+    h+='<div class="pk-add-cat" onclick="packAddingCat=true;renderPack()"><span style="font-size:16px;margin-right:4px">+</span> 新增分類</div>';
+  }
+
+  h+='</div>'; // cl-body
+  el.innerHTML=h;
+
+  // Focus inputs
+  if(packEditIdx>=0){var inp=document.getElementById('pk-edit-input-'+packEditIdx);if(inp){inp.focus();inp.select()}}
+  if(packAddingCat){var catInp=document.getElementById('pk-add-cat-input');if(catInp)catInp.focus()}
+  if(packAddingItemCat){var addInp=document.getElementById('pk-add-input-'+packAddingItemCat);if(addInp)addInp.focus()}
+}
+
+function packToggle(i){var d=getPack();d[i].done=!d[i].done;savePack(d);renderPack()}
+function packDel(i){var d=getPack();d.splice(i,1);savePack(d);packEditIdx=-1;renderPack()}
+
+function packShowEdit(i){
+  packEditIdx=i;
+  renderPack();
+  var inp=document.getElementById('pk-edit-input-'+i);if(inp)inp.focus();
+}
+function packSaveEdit(i,val){
+  val=val.trim();
+  if(!val){packCancelEdit();return}
+  var d=getPack();d[i].label=val;savePack(d);
+  packEditIdx=-1;
+  renderPack();
+}
+function packCancelEdit(){
+  packEditIdx=-1;
+  renderPack();
+}
+
+function packToggleCat(cat){
+  var cc=getPackCollapsed();
+  cc[cat]=!cc[cat];
+  setPackCollapsed(cc);
+  renderPack();
+}
+
+function packToggleMenu(cat){
+  packOpenMenuCat=(packOpenMenuCat===cat)?null:cat;
+  renderPack();
+}
+
+function packRenameCat(cat){
+  var newName=prompt('重新命名分類:',cat);
+  if(!newName||!newName.trim()||newName.trim()===cat){packOpenMenuCat=null;renderPack();return}
+  newName=newName.trim();
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.category=newName});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packCheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=true});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packUncheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=false});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packDelCat(cat){
+  if(!confirm('確定刪除「'+cat+'」分類及其所有物品？'))return;
+  var d=getPack().filter(function(item){return(item.category||'其他')!==cat});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packShowAddItem(cat){
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packHideAddItem(){
+  packAddingItemCat=null;
+  renderPack();
+}
+
+function packAddItem(cat){
+  var inp=document.getElementById('pk-add-input-'+cat);
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  var d=getPack();
+  d.push({label:v,category:cat==='其他'?'':cat,done:false});
+  savePack(d);
+  // Keep input focused for rapid entry
+  inp.value='';
+  renderPack();
+  // Re-focus after render
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packAddCat(){
+  var inp=document.getElementById('pk-add-cat-input');
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  // Add a placeholder item in this category to create it
+  var d=getPack();
+  d.push({label:'(新物品)',category:v,done:false});
+  savePack(d);
+  packAddingCat=false;
+  // Open inline add for the new category immediately
+  packAddingItemCat=v;
+  renderPack();
+}
+
+// Close packing menu when clicking outside
+document.addEventListener('click',function(e){
+  if(packOpenMenuCat&&!e.target.closest('.pk-menu-btn')){
+    packOpenMenuCat=null;
+    renderPack();
+  }
+});
+
+// ---- Todo (with pencil icon) ----
+function getTodo(){return lsGet(TODO_KEY,defaultTodo.map(function(d){return Object.assign({},d,{done:false})}))}
+function saveTodo(data){lsSet(TODO_KEY,data)}
+
+var todoEditIdx=-1;
+function renderTodo(){
+  var el=document.getElementById('cl-todo');
+  var items=getTodo();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  // Sort: unchecked first, then checked
+  var sorted=items.map(function(item,i){return{item:item,idx:i}});
+  sorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'todo\')"><span class="cl-emoji">&#9989;</span> 待辦清單<span class="cl-arrow">'+(col.todo?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.todo?' collapsed':'')+'">';
+  sorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    if(todoEditIdx===i){
+      // Edit mode: item row + edit form below (same as reservations)
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="todoToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<span class="cl-label">'+esc(item.label)+'</span>';
+      if(item.hint){h+='<div class="cl-hint">'+esc(item.hint)+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      h+='<div class="cl-edit-form">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div>';
+      h+='<input id="todo-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">備註</div>';
+      h+='<input id="todo-e-hint-'+i+'" value="'+escAttr(item.hint||'')+'">';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="todoHideEdit()">取消</button><button class="cl-btn-ok" onclick="todoSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      h+='<div class="cl-item '+ck+'" onclick="todoToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info"><span class="cl-label">'+esc(item.label)+'</span>'+(item.hint?'<div class="cl-hint">'+esc(item.hint)+'</div>':'')+'</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="todo-add-btn" onclick="todoShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="todo-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div><input id="todo-input-label" placeholder="輸入待辦事項..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();document.getElementById(\'todo-input-hint\').focus()}"><div style="font-size:12px;color:#888;margin-bottom:2px;margin-top:4px">備註</div><input id="todo-input-hint" placeholder="選填" onkeydown="if(event.key===\'Enter\')todoAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="todoHideAdd()">取消</button><button class="cl-btn-ok" onclick="todoAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(todoEditIdx>=0){var inp=document.getElementById('todo-e-label-'+todoEditIdx);if(inp)inp.focus()}
+}
+function todoToggle(i){var d=getTodo();d[i].done=!d[i].done;saveTodo(d);renderTodo()}
+function todoDel(i){var d=getTodo();d.splice(i,1);saveTodo(d);todoEditIdx=-1;renderTodo()}
+function todoShowAdd(){document.getElementById('todo-add-btn').style.display='none';document.getElementById('todo-add-form').style.display='flex';document.getElementById('todo-input-label').focus()}
+function todoHideAdd(){document.getElementById('todo-add-btn').style.display='flex';document.getElementById('todo-add-form').style.display='none';document.getElementById('todo-input-label').value='';document.getElementById('todo-input-hint').value=''}
+function todoAdd(){var v=document.getElementById('todo-input-label').value.trim();if(!v)return;var hint=document.getElementById('todo-input-hint').value.trim();var d=getTodo();d.push({label:v,hint:hint,done:false});saveTodo(d);renderTodo()}
+function todoShowEdit(i){todoEditIdx=i;renderTodo()}
+function todoHideEdit(){todoEditIdx=-1;renderTodo()}
+function todoSaveEdit(i){var inp=document.getElementById('todo-e-label-'+i);if(!inp)return;var v=inp.value.trim();if(!v){todoHideEdit();return}var d=getTodo();d[i].label=v;var hInp=document.getElementById('todo-e-hint-'+i);d[i].hint=hInp?hInp.value.trim():'';saveTodo(d);todoEditIdx=-1;renderTodo()}
+
+function renderAllCl(){renderTodo();renderRes();renderPack()}
+renderAllCl();
+
+// Map controls: position below sticky header
+(function(){
+  var sh=document.querySelector('.sticky-header');
+  var mc=document.querySelector('.map-ctrl');
+  function update(){
+    if(sh&&mc){mc.style.top=sh.offsetHeight+'px'}
+  }
+  update();
+  window.addEventListener('resize',update);
+})();
+
+// Map
+var mapReady=false,mo,markers=[];
+var colors={"drink": "#8e44ad", "flight": "#95a5a6", "food": "#e67e22", "hotel": "#e74c3c", "spot": "#27ae60", "transport": "#95a5a6", "work": "#2e86c1"};
+
+var pts=[{"c": "hotel", "d": "d1", "desc": "Check-in\uff0c\u516c\u5bd3\u5f0f\u98ef\u5e97\uff0c2-4 \u4eba\u623f\u9644\u5eda\u623f", "lat": 35.7146798, "lng": 139.7801414, "maps_query": "MIMARU Tokyo Ueno EAST, Tokyo, Japan", "n": "MIMARU TOKYO UENO EAST", "place_id": "ChIJNzPzFlaPGGARy9dNXr557qY"}, {"c": "spot", "d": "d1", "desc": "\u4ef2\u898b\u4e16\u901a\u5c0f\u5403\uff1a\u4eba\u5f62\u71d2\u3001\u714e\u9905\uff08\u86cb\u5976\u7d20 OK\uff09", "lat": 35.7147651, "lng": 139.7966553, "maps_query": "\u6d45\u8349\u5bfa, Tokyo, Japan", "n": "Sens\u014d-ji", "place_id": "ChIJ8T1GpMGOGGARDYGSgpooDWw"}, {"c": "spot", "d": "d1", "desc": "\u591c\u666f\u89c0\u666f\u53f0 + Solamachi \u5546\u5834\u8993\u98df", "lat": 35.7100627, "lng": 139.81070040000003, "maps_query": "\u6771\u4eac\u30b9\u30ab\u30a4\u30c4\u30ea\u30fc, Tokyo, Japan", "n": "Tokyo Skytree", "place_id": "ChIJ35ov0dCOGGARKvdDH7NPHX0"}, {"c": "spot", "d": "d2", "desc": "\u65e9\u6668\u6563\u6b65\u907f\u6691\uff0c\u7da0\u610f\u76ce\u7136", "lat": 35.7147557, "lng": 139.7734312, "maps_query": "\u4e0a\u91ce\u6069\u8cdc\u516c\u5712, Tokyo, Japan", "n": "Ueno Park", "place_id": "ChIJw2qQRZuOGGARWmROEiM2y7E"}, {"c": "spot", "d": "d2", "desc": "\u65e5\u672c\u6700\u5927\u535a\u7269\u9928\uff0c\u5ba4\u5167\u51b7\u6c23\uff08\u9031\u4e00\u516c\u4f11\uff09", "lat": 35.7188351, "lng": 139.7765215, "maps_query": "\u6771\u4eac\u56fd\u7acb\u535a\u7269\u9928, Ueno, Tokyo, Japan", "n": "Tokyo National Museum", "place_id": "ChIJEX3XFIOOGGAR3XdJvRjWLyM"}, {"c": "spot", "d": "d2", "desc": "\u4e2d\u53e4\u52d5\u6f2b\u516c\u4ed4\u8056\u5730\uff0c8 \u5c64\u6a13", "lat": 35.700373299999995, "lng": 139.77050309999998, "maps_query": "Mandarake Complex, Akihabara, Tokyo, Japan", "n": "Mandarake Complex", "place_id": "ChIJm3WItR2MGGAR05t5cpt7U4w"}, {"c": "spot", "d": "d2", "desc": "\u591a\u5c64\u516c\u4ed4/\u6a21\u578b\u5546\u5834", "lat": 35.6979149, "lng": 139.77195709999998, "maps_query": "Radio Kaikan, Akihabara, Tokyo, Japan", "n": "Akihabara Radio Kaikan", "place_id": "ChIJ__-AdayOGGAR6EGPwvcpzTA"}, {"c": "spot", "d": "d2", "desc": "\u5927\u91cf\u626d\u86cb\u6a5f\u96c6\u4e2d\u5730", "lat": 35.7018425, "lng": 139.77122559999998, "maps_query": "\u79cb\u8449\u539f\u30ac\u30c1\u30e3\u30dd\u30f3\u4f1a\u9928, Akihabara, Tokyo, Japan", "n": "Akihabara Gachapon Hall", "place_id": "ChIJBztW3x2MGGARadHYl5vTEK0"}, {"c": "spot", "d": "d2", "desc": "\u8d85\u5927\u578b\u96fb\u5668\u514d\u7a05\u5e97\uff0c9 \u5c64\u6a13", "lat": 35.698917, "lng": 139.774798, "maps_query": "\u30e8\u30c9\u30d0\u30b7\u30ab\u30e1\u30e9 \u30de\u30eb\u30c1\u30e1\u30c7\u30a3\u30a2Akiba, Akihabara, Tokyo, Japan", "n": "Yodobashi Akiba", "place_id": "ChIJGU_M2aeOGGARdnOLcMYXuXs"}, {"c": "spot", "d": "d3", "desc": "\u5834\u5916\u5e02\u5834\u65e9\u5e02\uff0c\u7389\u5b50\u71d2\u7b49\u86cb\u5976\u7d20\u5c0f\u5403", "lat": 35.6647703, "lng": 139.7702515, "maps_query": "\u7bc9\u5730\u5834\u5916\u5e02\u5834, Tokyo, Japan", "n": "Fish Market Tsukiji Outer Market", "place_id": "ChIJW2cLzSGLGGARXAKXv6EkbqI"}, {"c": "food", "d": "d3", "desc": "\u77e5\u540d\u7d20\u98df\u62c9\u9eb5\uff0c\u6771\u4eac\u7ad9\u5167", "lat": 35.679762499999995, "lng": 139.7669513, "maps_query": "T\u0027s TanTan, Tokyo Station, Japan", "n": "T\u0027s Tantan", "place_id": "ChIJtTLL9fuLGGARm6IP54k3xn4"}, {"c": "spot", "d": "d3", "desc": "\u6771\u4eac\u7ad9\u5730\u4e0b\u8857\uff0c\u5404 IP \u5b98\u65b9\u5546\u5e97", "lat": 35.682033499999996, "lng": 139.7686549, "maps_query": "\u6771\u4eac\u30ad\u30e3\u30e9\u30af\u30bf\u30fc\u30b9\u30c8\u30ea\u30fc\u30c8, Tokyo Station, Japan", "n": "Tokyo Character Street", "place_id": "ChIJGeYlX_mLGGARx_4HVNDXOxA"}, {"c": "spot", "d": "d3", "desc": "\u65b0\u54c1\u516c\u4ed4\u5927\u578b\u5e97", "lat": 35.697949699999995, "lng": 139.77145969999998, "maps_query": "AmiAmi Akihabara, Tokyo, Japan", "n": "amiami Akihabara Figure Tower", "place_id": "ChIJPR3Mpx2MGGARl5yyxi5j97k"}, {"c": "spot", "d": "d3", "desc": "\u58fd\u5c4b\u76f4\u71df\uff0c\u9650\u5b9a\u7248\u516c\u4ed4", "lat": 35.6992291, "lng": 139.7704606, "maps_query": "Kotobukiya Akihabara, Tokyo, Japan", "n": "AKIHABARA KOTOBUKIYA", "place_id": "ChIJd138lh2MGGARQ1jRla0xMQ4"}, {"c": "spot", "d": "d3", "desc": "\u9a5a\u5b89\u6bbf\u5802\uff0c\u96fb\u5668 + \u514d\u7a05\uff0c\u958b\u5230\u6df1\u591c", "lat": 35.700734499999996, "lng": 139.77171769999998, "maps_query": "\u30c9\u30f3\u30fb\u30ad\u30db\u30fc\u30c6 \u79cb\u8449\u539f, Tokyo, Japan", "n": "Don Quijote Akihabara", "place_id": "ChIJ7S15lB2MGGARvsUPQb9by7c"}, {"c": "spot", "d": "d4", "desc": "\u68ee\u6797\u795e\u793e\uff0c\u65e9\u6668\u6dbc\u723d\u6563\u6b65", "lat": 35.6763976, "lng": 139.6993259, "maps_query": "\u660e\u6cbb\u795e\u5bae, Tokyo, Japan", "n": "Meiji Jingu", "place_id": "ChIJ5SZMmreMGGARcz8QSTiJyo8"}, {"c": "spot", "d": "d4", "desc": "\u6f6e\u6d41\u8857 + \u53ef\u9e97\u9905\u5c0f\u5403\uff08\u86cb\u5976\u7d20 OK\uff09", "lat": 35.6710335, "lng": 139.7051821, "maps_query": "\u7af9\u4e0b\u901a\u308a, Harajuku, Tokyo, Japan", "n": "Takeshita Street", "place_id": "ChIJlVne8bqMGGARtX5O6ojMvsI"}, {"c": "food", "d": "d4", "desc": "\u67da\u5b50\u9e7d\u7d20\u98df\u62c9\u9eb5", "lat": 35.6730053, "lng": 139.7038019, "maps_query": "AFURI Harajuku, Tokyo, Japan", "n": "AFURI Harajuku", "place_id": "ChIJba17TbqMGGARFtDV6hkZbcs"}, {"c": "spot", "d": "d4", "desc": "\u7d93\u5178\u73a9\u5177/\u516c\u4ed4\u96dc\u8ca8\u5e97", "lat": 35.667733, "lng": 139.7065474, "maps_query": "Kiddy Land Harajuku, Tokyo, Japan", "n": "Kiddy Land", "place_id": "ChIJu1uP9aOMGGARiZH5QxSqDm0"}, {"c": "spot", "d": "d4", "desc": "\u5c4b\u9802\u89c0\u666f\u53f0\uff0c\u5915\u967d\u6e0b\u8c37\u5168\u666f", "lat": 35.6586719, "lng": 139.7019848, "maps_query": "SHIBUYA SKY, Shibuya Scramble Square, Tokyo, Japan", "n": "Shibuya Sky", "place_id": "ChIJ4Rr2JWiLGGARcyRSHuZ-9G8"}, {"c": "spot", "d": "d4", "desc": "\u6e0b\u8c37\u5927\u578b\u514d\u7a05\u5e97\uff0c\u958b\u5230\u6df1\u591c", "lat": 35.6603873, "lng": 139.6978172, "maps_query": "MEGA\u30c9\u30f3\u30fb\u30ad\u30db\u30fc\u30c6\u6e0b\u8c37\u672c\u5e97, Tokyo, Japan", "n": "MEGA Don Quijote", "place_id": "ChIJr4J6pKmMGGARdQLOgrzToH4"}, {"c": "spot", "d": "d5", "desc": "\u5927\u578b\u65e5\u5f0f\u5ead\u5712\u6563\u6b65\uff08\u9031\u4e00\u516c\u4f11\uff0c\u65e5 \u2705\uff09", "lat": 35.685176299999995, "lng": 139.7100517, "maps_query": "\u65b0\u5bbf\u5fa1\u82d1, Tokyo, Japan", "n": "Shinjuku Gyoen National Garden", "place_id": "ChIJPyOTG8KMGGARh_IXobWxHmo"}, {"c": "food", "d": "d5", "desc": "\u5370\u5ea6\u7d20\u98df\u9910\u5ef3\uff0c\u5e73\u50f9\u5348\u9910", "lat": 35.661125, "lng": 139.701048, "maps_query": "\u30ca\u30bf\u30e9\u30b8 \u65b0\u5bbf, Tokyo, Japan", "n": "Milan Nataraj", "place_id": "ChIJ1WqcdKiMGGARDBlhREtS9IE"}, {"c": "spot", "d": "d5", "desc": "\u4e2d\u53e4\u516c\u4ed4\u6316\u5bf6\u5929\u5802\uff0cMandarake \u672c\u5e97\u5728\u6b64", "lat": 35.7092475, "lng": 139.66565240000003, "maps_query": "Nakano Broadway, Tokyo, Japan", "n": "Nakano Broadway", "place_id": "ChIJg-7dspDyGGARvvDv4E5-tuE"}, {"c": "spot", "d": "d5", "desc": "\u6b4c\u821e\u4f0e\u753a\u514d\u7a05\u5e97\uff0c\u96fb\u5668 + \u65e5\u7528\u54c1", "lat": 35.6937755, "lng": 139.7017873, "maps_query": "\u30c9\u30f3\u30fb\u30ad\u30db\u30fc\u30c6 \u65b0\u5bbf\u6b4c\u821e\u4f0e\u753a\u5e97, Tokyo, Japan", "n": "Don Quijote Shinjuku Kabukicho", "place_id": "ChIJPbnq29mMGGARKCnQB1AFg4U"}, {"c": "spot", "d": "d6", "desc": "DiverCity \u5167\uff0c\u5be6\u7269\u5927\u92fc\u5f48 + \u6a21\u578b\u65d7\u8266\u5e97", "lat": 35.6254768, "lng": 139.77613829999999, "maps_query": "The Gundam Base Tokyo, DiverCity Tokyo Plaza, Odaiba, Tokyo, Japan", "n": "The Gundam Base Tokyo", "place_id": "ChIJIy1S0_mJGGAR2d0UgvPKUPg"}, {"c": "spot", "d": "d6", "desc": "\u5168\u7403\u6700\u5927\u52d5\u6f2b\u5468\u908a\u65d7\u8266\u5e97", "lat": 35.7311443, "lng": 139.7154592, "maps_query": "Animate Ikebukuro Main Store, Tokyo, Japan", "n": "animate Ikebukuro Flagship Store", "place_id": "ChIJi0VhQ2-NGGARGsbajebyPVA"}, {"c": "spot", "d": "d6", "desc": "\u842c\u4ee3\u5b98\u65b9\uff0c3000+ \u53f0\u626d\u86cb\u6a5f", "lat": 35.7284994, "lng": 139.7197969, "maps_query": "\u30ac\u30b7\u30e3\u30dd\u30f3\u306e\u30c7\u30d1\u30fc\u30c8\u6c60\u888b Sunshine City, Tokyo, Japan", "n": "Gashapon Ikebukuro Main Store", "place_id": "ChIJAX6RgpONGGAR5hVdlYCQINI"}, {"c": "spot", "d": "d6", "desc": "\u5927\u578b\u96fb\u5668\u514d\u7a05\u5e97", "lat": 35.7317044, "lng": 139.71287809999998, "maps_query": "\u30d3\u30c3\u30af\u30ab\u30e1\u30e9 \u6c60\u888b\u672c\u5e97, Tokyo, Japan", "n": "BicCamera Ikebukuro Main Store", "place_id": "ChIJXzAaDWeNGGARP_PwfI4ooXA"}, {"c": "food", "d": "d6", "desc": "\u7d20\u98df\u665a\u9910/\u9b06\u9905\uff0c\u6c60\u888b\u2192\u65b0\u5bbf JR 10 min", "lat": 35.6907077, "lng": 139.7066642, "maps_query": "Ain Soph Journey, Asakusa, Taito, Tokyo, Japan", "n": "Ain Soph. Journey Shinjuku", "place_id": "ChIJyUynodyMGGARfdwk4A8pub8"}, {"c": "food", "d": "d7", "desc": "\u852c\u83dc\u7d20\u98df\u62c9\u9eb5 brunch", "lat": 35.67183560000001, "lng": 139.7697934, "maps_query": "\u30bd\u30e9\u30ce\u30a4\u30ed Japanese Soba Noodles, Tokyo, Japan", "n": "SORANOIRO GINZA MAIN STORE", "place_id": "ChIJB2PMTgCLGGARaXHroTM0th8"}, {"c": "hotel", "d": "d7", "desc": "Check-out\uff0c\u53d6\u884c\u674e \u2192 \u524d\u5f80\u6a5f\u5834", "lat": 35.7146798, "lng": 139.7801414, "maps_query": "MIMARU Tokyo Ueno EAST, Tokyo, Japan", "n": "MIMARU TOKYO UENO EAST", "place_id": "ChIJNzPzFlaPGGARy9dNXr557qY"}];
+
+var allBounds=L.latLngBounds([]);
+var dayBoundsMap={};
+(function(){
+  if(pts.length===0)return;
+  var dayPts={};
+  pts.forEach(function(p){
+    allBounds.extend([p.lat,p.lng]);
+    if(!dayPts[p.d])dayPts[p.d]=[];
+    dayPts[p.d].push(p);
+  });
+  Object.keys(dayPts).forEach(function(d){
+    var b=L.latLngBounds(dayPts[d].map(function(p){return[p.lat,p.lng]}));
+    dayBoundsMap[d]=b;
+  });
+})();
+
+function mkIco(col){
+  return L.divIcon({className:'',html:'<svg width="22" height="30" viewBox="0 0 28 36"><path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="'+col+'" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>',iconSize:[22,30],iconAnchor:[11,30],popupAnchor:[0,-30]});
+}
+
+function initMap(){
+  mo=L.map('map');
+  if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});else mo.setView([0,0],2);
+  L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:18}).addTo(mo);
+  pts.forEach(function(p){
+    var m=L.marker([p.lat,p.lng],{icon:mkIco(colors[p.c]||'#999')});
+    var dayLabel=p.d.replace('d','Day ');
+    var url=p.place_id?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n)+'&query_place_id='+p.place_id:(p.lat&&p.lng)?'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n);
+    m.bindPopup('<div style="min-width:180px"><b style="font-size:14px">'+p.n+'</b><br><span style="font-size:11px;color:#888">'+dayLabel+'</span><br><span style="font-size:12px;color:#555;line-height:1.5">'+(p.desc||'')+'</span><br><a href="'+url+'" target="_blank" style="color:#1a73e8;font-size:12px;margin-top:4px;display:inline-block">&#128205; 在 Google Maps 開啟</a></div>');
+    m.pd=p;
+    m.addTo(mo);
+    markers.push(m);
+  });
+  // Color legend
+  var legend=L.control({position:'bottomright'});
+  legend.onAdd=function(){
+    var d=L.DomUtil.create('div');
+    d.style.cssText='background:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:12px;line-height:2.2';
+    var legendItems=[
+      ['#e74c3c','住宿'],
+      ['#2e86c1','工作'],
+      ['#e67e22','美食'],
+      ['#27ae60','景點'],
+      ['#95a5a6','移動']
+    ];
+    d.innerHTML='<b style="font-size:13px;margin-bottom:4px;display:block">圖例</b>'+legendItems.map(function(pair){return '<span style="display:inline-flex;align-items:center;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:'+pair[0]+';display:inline-block;margin-right:4px"></span>'+pair[1]+'</span>'}).join('');
+    return d;
+  };
+  legend.addTo(mo);
+  mapReady=true;
+}
+
+function mf(day,btn){
+  document.querySelectorAll('.map-ctrl button').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(day==='all'){
+    markers.forEach(function(m){if(!mo.hasLayer(m))mo.addLayer(m)});
+    if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});
+  } else {
+    markers.forEach(function(m){
+      if(m.pd.d===day){if(!mo.hasLayer(m))mo.addLayer(m)} else mo.removeLayer(m);
+    });
+    var b=dayBoundsMap[day];
+    if(b&&b.isValid())mo.fitBounds(b,{padding:[30,30],maxZoom:16});
+  }
+}
+</script>
+</body>
+</html>

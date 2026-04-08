@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>台南三天兩夜</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23f5f5f5'/><text x='90' y='130' font-size='120' text-anchor='middle'>🏯</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='16' y='26' font-size='28' text-anchor='middle'>🏯</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#333}
+
+.sticky-header{position:sticky;top:0;z-index:200}
+.top-bar{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:14px 20px 10px;text-align:center;position:relative}
+.top-bar h1{font-size:18px;font-weight:600}
+.top-bar p{font-size:12px;opacity:.85;margin-top:2px}
+.back-home{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.85);text-decoration:none;font-size:22px;line-height:1;padding:4px;border-radius:6px;transition:.15s}
+.back-home:hover{color:#fff;background:rgba(255,255,255,.12)}
+.top-legend{display:flex;justify-content:center;gap:12px;margin-top:8px;font-size:11px;opacity:.8;flex-wrap:wrap}
+
+.tab-nav{display:flex;background:#fff;border-bottom:1px solid #ddd}
+.tab-btn{flex:1;padding:10px;border:none;background:#fff;font-size:13px;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;color:#666;transition:.2s}
+.tab-btn.active{color:#1a73e8;border-bottom-color:#1a73e8}
+
+/* (legend strip moved into top-bar as .top-legend) */
+
+/* Itinerary */
+#itin{display:none;padding-bottom:30px}
+#itin.active{display:block}
+
+.day-sec{margin:16px 12px 0}
+.day-hdr{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-size:15px;font-weight:600}
+.day-hdr .sub{font-size:12px;opacity:.8;margin-top:2px;font-weight:400}
+.day-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+
+/* Place card - entire thing clickable */
+a.place{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit;transition:background .12s;cursor:pointer}
+a.place:last-child{border-bottom:none}
+a.place:hover{background:#f0f6ff}
+a.place:active{background:#e3edfa}
+
+.pc{flex:1;min-width:0}
+.pc-time{font-size:12px;color:#1a5276;font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}
+.pc-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.pc-note{font-size:12px;color:#666;line-height:1.5}
+.pc-user-note{font-size:12px;color:#1a73e8;line-height:1.5;margin-top:2px;font-style:italic}
+.arrow{color:#bbb;font-size:16px;margin-top:3px;flex-shrink:0}
+
+/* Place edit button */
+.place-edit-btn{width:32px;height:32px;border:none;background:none;color:#bbb;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:.15s;text-decoration:none}
+.place-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.place-edit-btn.has-note{color:#1a73e8}
+
+/* Place note editor */
+.place-note-editor{padding:8px 14px;background:#fafbfc;border-bottom:1px solid #f0f0f0;display:none}
+.place-note-editor textarea{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none;box-sizing:border-box}
+.place-note-editor textarea:focus{border-color:#1a73e8}
+.place-note-editor button{margin-top:6px;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+
+/* Travel segment between places */
+.travel-seg{display:flex;flex-direction:column;gap:2px;padding:6px 14px 6px 28px;background:#fafbfc;border-bottom:1px solid #f0f0f0;font-size:11px;color:#888}
+.travel-seg .seg-main{display:flex;align-items:center;gap:8px}
+.travel-seg .seg-icon{font-size:14px}
+.travel-seg .seg-line{flex:1;height:1px;background:#e0e0e0}
+.travel-seg .seg-info{white-space:nowrap;color:#555;font-weight:500}
+.travel-seg .seg-transit{display:flex;flex-direction:column;gap:2px;padding:2px 0 2px 22px;font-size:10px;color:#666}
+.travel-seg .seg-transit-step{display:flex;align-items:center;gap:5px;line-height:1.5}
+.travel-seg .seg-transit-line{background:#1a73e8;color:#fff;padding:1px 6px;border-radius:8px;font-weight:600;font-size:9px;white-space:nowrap}
+.travel-seg .seg-transit-line.bus{background:#0d7a3e}
+.travel-seg .seg-transit-line.rail{background:#1a5276}
+.travel-seg .seg-transit-stops{color:#555}
+.travel-seg .seg-transit-time{color:#999;margin-left:auto;white-space:nowrap}
+
+/* Map */
+#map-panel{display:none}
+#map-panel.active{display:block}
+#map{width:100%;height:calc(100vh - 135px)}
+.map-ctrl{display:flex;gap:5px;padding:8px 10px;background:#fff;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:0;z-index:150;border-bottom:1px solid #ddd}
+.map-ctrl button{padding:4px 10px;border:1.5px solid #ddd;border-radius:14px;background:#fff;font-size:11px;cursor:pointer;white-space:nowrap;transition:.2s}
+.map-ctrl button.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+
+/* Checklist tab */
+#checklist{display:none;padding:16px 12px 30px}
+#checklist.active{display:block}
+.cl-sec{margin-bottom:20px}
+.cl-hdr{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:10px 10px 0 0;font-size:15px;font-weight:600;cursor:pointer;-webkit-user-select:none;user-select:none}
+.cl-hdr .cl-emoji{font-size:18px}
+.cl-hdr .cl-arrow{margin-left:auto;font-size:12px;transition:transform .2s}
+.cl-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+.cl-body.collapsed{display:none}
+.cl-item{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-bottom:1px solid #f0f0f0;transition:background .12s;-webkit-user-select:none;user-select:none}
+.cl-item:hover{background:#f8f9fa}
+.cl-item.checked{opacity:.55}
+.cl-item.checked .cl-label{text-decoration:line-through}
+.cl-check{width:20px;height:20px;border:2px solid #ccc;border-radius:5px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:13px;color:#fff;background:#fff;cursor:pointer}
+.cl-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.cl-info{flex:1;min-width:0}
+.cl-label{font-size:13px;font-weight:500;color:#333}
+.cl-hint{font-size:11px;color:#999;margin-top:2px;line-height:1.4}
+.cl-meta{font-size:11px;color:#888;margin-top:3px;line-height:1.4}
+.cl-del{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:16px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-del:hover{color:#e74c3c;background:#fdecea}
+/* Pencil edit button - same as del but blue on hover */
+.cl-edit-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;flex-shrink:0;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:-1px;min-height:44px}
+.cl-edit-btn:hover{color:#1a73e8;background:#e8f0fe}
+.cl-progress{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #eee}
+.cl-bar{flex:1;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.cl-bar-fill{height:100%;background:linear-gradient(90deg,#27ae60,#2ecc71);border-radius:3px;transition:width .3s}
+.cl-pct{font-size:11px;color:#888;white-space:nowrap}
+.cl-add{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px dashed #ddd;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s}
+.cl-add:hover{background:#f0f6ff}
+.cl-add-icon{font-size:18px;line-height:1}
+.cl-add-form{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-top:1px dashed #ddd}
+.cl-add-form input,.cl-add-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;box-sizing:border-box}
+.cl-add-form input:focus,.cl-add-form textarea:focus{border-color:#1a73e8}
+.cl-add-form .cl-add-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-add-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-add-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-add-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form{padding:10px 14px;border-bottom:1px solid #f0f0f0;background:#fafbfc}
+.cl-edit-form input,.cl-edit-form textarea{width:100%;max-width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:16px;outline:none;font-family:inherit;margin-bottom:6px;box-sizing:border-box;-webkit-appearance:none;appearance:none;min-height:44px}
+.cl-edit-form input:focus,.cl-edit-form textarea:focus{border-color:#1a73e8}
+.cl-edit-form .cl-edit-btns{display:flex;gap:6px;justify-content:flex-end}
+.cl-edit-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.cl-edit-form .cl-btn-ok{background:#1a73e8;color:#fff}
+.cl-edit-form .cl-btn-cancel{background:#f0f0f0;color:#666}
+.cl-edit-form .cl-edit-hint{font-size:12px;color:#999}
+
+/* ===== Packing section - TREK style ===== */
+.pk-card{background:#fff;border-radius:14px;border:1px solid #e8e8e8;margin-bottom:8px;overflow:visible}
+.pk-card-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.pk-card-hdr.open{border-bottom:1px solid #e8e8e8}
+.pk-chevron{font-size:10px;color:#999;transition:transform .2s;flex-shrink:0;width:14px;text-align:center}
+.pk-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pk-cat-name{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#666;flex:1;min-width:0}
+.pk-count{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:#f0f0f0;color:#888;flex-shrink:0}
+.pk-count.all-done{background:rgba(22,163,74,0.12);color:#16a34a}
+.pk-menu-btn{width:28px;height:28px;border:none;background:none;color:#999;font-size:16px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.pk-menu-btn:hover{background:#f0f0f0;color:#666}
+.pk-card-body{overflow:hidden}
+.pk-card-body.collapsed{display:none}
+.pk-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;position:relative;transition:background .12s}
+.pk-item:hover{background:#f8f9fa}
+.pk-item.checked .pk-name{opacity:.55;text-decoration:line-through}
+.pk-item.checked .cl-check{background:#27ae60;border-color:#27ae60}
+.pk-name{flex:1;font-size:13.5px;min-width:0}
+.pk-edit-input{flex:1;font-size:13.5px;padding:2px 8px;border-radius:6px;border:1px solid #1a73e8;outline:none;font-family:inherit;box-sizing:border-box}
+.pk-actions{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity .12s}
+.pk-item:hover .pk-actions{opacity:1}
+@media(max-width:767px){.pk-actions{opacity:1!important}}
+.pk-act-btn{width:28px;height:28px;border:none;background:none;color:#ccc;font-size:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s;min-height:44px}
+.pk-act-btn:hover{color:#1a73e8;background:#e8f0fe}
+.pk-act-btn.del:hover{color:#e74c3c;background:#fdecea}
+.pk-inline-add{display:flex;align-items:center;gap:8px;padding:6px 10px;color:#1a73e8;font-size:13px;cursor:pointer;transition:background .12s;border-radius:0 0 14px 14px}
+.pk-inline-add:hover{background:#f0f6ff}
+.pk-inline-add-form{display:flex;align-items:center;gap:6px;padding:6px 10px}
+.pk-inline-add-form input{flex:1;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13.5px;outline:none;font-family:inherit}
+.pk-inline-add-form input:focus{border-color:#1a73e8}
+.pk-inline-add-form button{width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;min-height:44px}
+.pk-inline-add-form .pk-add-ok{background:#1a73e8;color:#fff}
+.pk-inline-add-form .pk-add-cancel{background:#f0f0f0;color:#666}
+
+/* Packing dropdown menu */
+.pk-dropdown{display:none;position:absolute;top:100%;right:0;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:100;min-width:140px;overflow:hidden}
+.pk-dropdown.open{display:block}
+.pk-dropdown button{display:block;width:100%;padding:10px 14px;border:none;background:none;text-align:left;font-size:13px;cursor:pointer;font-family:inherit;color:#333}
+.pk-dropdown button:hover{background:#f0f6ff}
+.pk-dropdown button.danger{color:#e74c3c}
+.pk-dropdown button.danger:hover{background:#fdecea}
+
+/* Add category button */
+.pk-add-cat{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;color:#1a73e8;font-size:13px;transition:background .12s;border-radius:10px;margin-top:4px}
+.pk-add-cat:hover{background:#f0f6ff}
+.pk-add-cat-form{display:flex;align-items:center;gap:6px;padding:10px 14px;margin-top:4px}
+.pk-add-cat-form input{flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;outline:none;font-family:inherit}
+.pk-add-cat-form input:focus{border-color:#1a73e8}
+.pk-add-cat-form button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.pk-add-cat-form .pk-btn-ok{background:#1a73e8;color:#fff}
+.pk-add-cat-form .pk-btn-cancel{background:#f0f0f0;color:#666}
+
+/* Info */
+#info{display:none;padding:16px 12px 30px}
+#info.active{display:block}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{font-size:15px;font-weight:600;color:#1a5276;margin-bottom:8px}
+.card p{font-size:13px;line-height:1.7;color:#555}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:7px 10px;text-align:left;border-bottom:1px solid #eee}
+.tbl th{background:#f8f9fa;font-weight:600;color:#1a5276}
+.tbl .total{font-weight:700;color:#1a73e8}
+.cw-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.cw-tbl th,.cw-tbl td{padding:5px 7px;text-align:left;border-bottom:1px solid #eee;vertical-align:top}
+.cw-tbl th{background:#e8f0fe;font-weight:600;color:#1a5276;white-space:nowrap}
+
+/* Floating notes button */
+.notes-fab{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:300;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s}
+.notes-fab:hover{transform:scale(1.08);box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.notes-panel{display:none;position:fixed;bottom:80px;right:16px;width:320px;max-width:calc(100vw - 32px);max-height:60vh;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:300;overflow:hidden;display:flex;flex-direction:column}
+.notes-panel:not(.open){display:none}
+.notes-panel.open{display:flex}
+.notes-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;font-size:14px;font-weight:600;flex-shrink:0}
+.notes-panel-hdr button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.8;transition:opacity .15s}
+.notes-panel-hdr button:hover{opacity:1}
+.notes-panel textarea{width:100%;height:200px;border:none;padding:12px 16px;font-size:13px;font-family:inherit;line-height:1.6;resize:vertical;outline:none;color:#333;flex:1;overflow-y:auto}
+.notes-panel textarea::placeholder{color:#bbb}
+
+/* Date badge for reservations */
+.res-date-badge{font-size:11px;color:#1a73e8;background:#e8f0fe;padding:2px 6px;border-radius:4px;margin-left:6px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="sticky-header">
+<div class="top-bar">
+  <a href="../" class="back-home" title="返回首頁">←</a>
+  <h1>台南三天兩夜</h1>
+  <p>2026 年 4 月 ｜ 古都美食 × 運河百年燈光</p>
+  <div class="top-legend">
+    <span>🏨 住宿</span>
+    <span>🍜 美食</span>
+    <span>📍 景點</span>
+    <span>☕ 飲品</span>
+    <span>🚊 交通</span>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="sw('itin',this)">行程</button>
+  <button class="tab-btn" onclick="sw('map-panel',this)">地圖</button>
+  <button class="tab-btn" onclick="sw('checklist',this)">清單</button>
+  <button class="tab-btn" onclick="sw('info',this)">實用資訊</button>
+</div>
+</div><!-- /sticky-header -->
+
+<!-- ==================== 行程 TAB ==================== -->
+<div id="itin" class="active">
+
+
+
+<!-- ===== DAY 1 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 1 — 奇美博物館 × 老宅義式晚餐<div class="sub">仁德→中西區｜博物館＋VR＋森根＋小滿＋Moonrock</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Hsinchu%20HSR%20Station%2C%20Taiwan&query_place_id=ChIJpVwYXwc3aDQRQ9EpVY-_efM" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🚊 新竹高鐵出發</div>
+    <div class="pc-note"><span class="pc-time">07:00</span>07:00 發車，約 08:30 抵達高鐵台南站。</div>
+    <div class="pc-user-note" id="pn-1-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">110 分鐘 ｜ 253.0 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line rail">High-Speed Rail</span>
+      <span class="seg-transit-stops">新竹 → 台南</span><span class="seg-transit-time">07:27</span></div><div class="seg-transit-step"><span class="seg-transit-line bus">8042延</span>
+      <span class="seg-transit-stops">高鐵台南站 → 奇美博物館</span><span class="seg-transit-time">08:48</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%A5%87%E7%BE%8E%E5%8D%9A%E7%89%A9%E9%A4%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJq6qqqnp0bjQRpvTHZeYTjKg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 奇美博物館</div>
+    <div class="pc-note"><span class="pc-time">09:30</span>距高鐵站步行 15 min / 接駁車 5 min。西洋藝術、兵器、樂器收藏。</div>
+    <div class="pc-user-note" id="pn-1-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">0 分鐘 ｜ 0.0 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%A5%87%E7%BE%8E%E5%8D%9A%E7%89%A9%E9%A4%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJq6qqqnp0bjQRpvTHZeYTjKg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 奇美博物館內午餐</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>館內餐廳或輕食區用餐，不用跑遠。</div>
+    <div class="pc-user-note" id="pn-1-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">0 分鐘 ｜ 0.0 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%A5%87%E7%BE%8E%E5%8D%9A%E7%89%A9%E9%A4%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJq6qqqnp0bjQRpvTHZeYTjKg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 VR《消失的法老》</div>
+    <div class="pc-note"><span class="pc-time">14:00</span>奇美 2F VR 體驗廳，~45 min。建議線上預購 680 元（現場 800）。需提前 15 min 報到。</div>
+    <div class="pc-user-note" id="pn-1-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">38 分鐘 ｜ 9.5 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">5延駛大甲里</span>
+      <span class="seg-transit-stops">奇美博物館 → 西門友愛街口</span><span class="seg-transit-time">14:14</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%B2%B3%E6%A8%82%E5%BB%A3%E5%A0%B4%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJi1YTdnd3bjQR6TeBoScvyk0" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 河樂廣場</div>
+    <div class="pc-note"><span class="pc-time">15:30</span>前中國城改建的下沉式親水公園，運河百年地景之一。VR 結束後順路經過。</div>
+    <div class="pc-user-note" id="pn-1-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">12 分鐘 ｜ 0.8 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=UIJ%20Hotel%20%26%20Hostel%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJmTZLr3x2bjQRZE6G_9_d5co" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🏨 UIJ 友愛街旅館 Check-in</div>
+    <div class="pc-note"><span class="pc-time">17:00</span>中西區友愛街，老城區正中心。放行李、稍作休息。</div>
+    <div class="pc-user-note" id="pn-1-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,5)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">16 分鐘 ｜ 1.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=22.9898175,120.2088204" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 森根 Sengen Studio</div>
+    <div class="pc-note"><span class="pc-time">18:15</span>老宅義式創意料理，手切麵招牌。僅現金、低消 360、限時 1.5hr、僅 4 桌。IG: @sengen_studio。</div>
+    <div class="pc-user-note" id="pn-1-6"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,6)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-6">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,6)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">29 分鐘 ｜ 5.9 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">77</span>
+      <span class="seg-transit-stops">民族路西華南街口 → 南紡購物中心</span><span class="seg-transit-time">18:28</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%B0%8F%E6%BB%BF%E8%A5%BF%E9%BB%9E%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E6%9D%B1%E5%8D%80%E6%9D%B1%E5%B9%B3%E8%B7%AF38%E8%99%9F&query_place_id=ChIJma7PeTB3bjQRVvj_wCd8GmE" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 小滿西點</div>
+    <div class="pc-note"><span class="pc-time">20:30</span>千層蛋糕名店，不接訂位僅現場候位，低消 150。週六日公休，只有今天能來！</div>
+    <div class="pc-user-note" id="pn-1-7"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,7)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-7">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,7)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">25 分鐘 ｜ 3.7 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">2延駛四草</span>
+      <span class="seg-transit-stops">四份子 → 臺南火車站(中山路C)</span><span class="seg-transit-time">20:39</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Moonrock%20Bar%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E5%8C%97%E5%8D%80%E6%88%90%E5%8A%9F%E8%B7%AF22%E5%B7%B742%E5%BC%8413%E8%99%9F&query_place_id=ChIJ0RYVUJ13bjQRHTxc4fv1wBs" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">☕ Moonrock</div>
+    <div class="pc-note"><span class="pc-time">22:00</span>亞洲百大酒吧。訂位低消 600，現場候位低消 350。電話 06-222-9528。</div>
+    <div class="pc-user-note" id="pn-1-8"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(1,8)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-1-8">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(1,8)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 2 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 2 — 老城探索 × 運河百年燈光<div class="sub">赤崁樓→神農街→碳烤海產→運河燈會→深夜居酒屋</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=UIJ%20Hotel%20%26%20Hostel%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJmTZLr3x2bjQRZE6G_9_d5co" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 UIJ 早餐</div>
+    <div class="pc-note"><span class="pc-time">07:30</span>飯店內用早餐。</div>
+    <div class="pc-user-note" id="pn-2-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">13 分鐘 ｜ 0.9 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E8%B5%A4%E5%B4%81%E6%A8%93%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJbYl7d2F2bjQRnFdvyMBuZfI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 赤崁樓</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>台南經典古蹟，荷蘭時期普羅民遮城遺跡。距 UIJ 步行 10 min。</div>
+    <div class="pc-user-note" id="pn-2-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">12 分鐘 ｜ 0.8 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%A5%9E%E8%BE%B2%E8%A1%97%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJn4ahgmZ2bjQRRpYB7Ku1hcU" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 神農街散步</div>
+    <div class="pc-note"><span class="pc-time">09:40</span>清代商業老街，現為文青老屋聚落。早上光線好、人少。</div>
+    <div class="pc-user-note" id="pn-2-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">5 分鐘 ｜ 0.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%B1%9F%E5%B7%9D%E8%82%89%E7%87%A5%E9%A3%AF%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJI_R0smZ2bjQRIzI5k0tghek" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 江川肉燥飯</div>
+    <div class="pc-note"><span class="pc-time">10:40</span>國華街經典小吃，一碗肉燥飯＋一碗湯。週五公休排在今天。</div>
+    <div class="pc-user-note" id="pn-2-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">9 分鐘 ｜ 1.6 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">3</span>
+      <span class="seg-transit-stops">西門路三段口 → 文賢路</span><span class="seg-transit-time">10:47</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E8%88%88%E8%99%B1%E7%9B%AE%E9%AD%9A%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJuxJOSF12bjQRpgwW8ihY0JA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 阿興虱目魚</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>虱目魚粥/湯名店。⚠️ 只到 14:00，別遲到。</div>
+    <div class="pc-user-note" id="pn-2-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">5 分鐘 ｜ 0.4 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=Toy%20Daddy%20%E6%89%AD%E8%9B%8B%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJaer-wJ93bjQRUg7-_N8AJSo" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 Toy Daddy 扭蛋選物</div>
+    <div class="pc-note"><span class="pc-time">12:45</span>午飯後順路逛，阿興旁 300m。扭蛋、盲盒、一番賞。</div>
+    <div class="pc-user-note" id="pn-2-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,5)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">27 分鐘 ｜ 3.1 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">2延駛三鯤鯓</span>
+      <span class="seg-transit-stops">民生路臨時停車場 → 小西門(西門路)</span><span class="seg-transit-time">13:00</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=SJ%C3%93%20%E5%92%BB%E5%92%96%E5%95%A1%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E4%B8%AD%E8%A5%BF%E5%8D%80%E8%A5%BF%E9%96%80%E8%B7%AF%E4%B8%80%E6%AE%B5734%E5%B7%B716%E5%BC%841%E8%99%9F&query_place_id=ChIJ3w8cDgB3bjQRNA2RvG5vLIU" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">☕ SJÓ 咻咖啡</div>
+    <div class="pc-note"><span class="pc-time">14:00</span>板前式虹吸咖啡，融合調酒手法。西門路老宅巷弄。</div>
+    <div class="pc-user-note" id="pn-2-6"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,6)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-6">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,6)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">8 分鐘 ｜ 1.6 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">5延駛大甲里</span>
+      <span class="seg-transit-stops">小西門(西門路) → 赤崁樓</span><span class="seg-transit-time">14:17</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%A5%BF%20Katsura%20%E7%94%9C%E9%BB%9E%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E4%B8%AD%E8%A5%BF%E5%8D%80%E6%B0%91%E6%97%8F%E8%B7%AF%E4%BA%8C%E6%AE%B5260%E8%99%9F&query_place_id=ChIJVVVGaWF2bjQR2WpS7Wf7DC0" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 楿 Katsura Dessert</div>
+    <div class="pc-note"><span class="pc-time">16:00</span>預約制日法盤式甜點，五道套餐 790/人。入口在新美街側 3F。需 inline 線上預約。</div>
+    <div class="pc-user-note" id="pn-2-7"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,7)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-7">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,7)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">5 分鐘 ｜ 0.3 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9B%89%E7%92%98%E7%A2%B3%E7%83%A4%E6%B5%B7%E7%94%A2%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E4%B8%AD%E8%A5%BF%E5%8D%80%E5%9C%8B%E8%8F%AF%E8%A1%97%E4%B8%89%E6%AE%B5203%E8%99%9F&query_place_id=ChIJTTsCtmZ2bjQR7PgvwM6MAiY" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 曉璘碳烤</div>
+    <div class="pc-note"><span class="pc-time">18:00</span>近 30 年碳烤海產老店，江振誠推薦。烤雞翅、烤排骨招牌。需預約 06-226-1974。</div>
+    <div class="pc-user-note" id="pn-2-8"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,8)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-8">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,8)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">17 分鐘 ｜ 3.0 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">2</span>
+      <span class="seg-transit-stops">郭綜合醫院 → 望月橋</span><span class="seg-transit-time">18:09</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9C%9B%E6%9C%88%E6%A9%8B%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJDWSw9BF2bjQRc2ycNROtYNo" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 🌟 運河 100 燈光裝置</div>
+    <div class="pc-note"><span class="pc-time">20:00</span>台南運河百年慶典！望月橋至承天橋、安億橋段。曉璘出來 WeMo 騎 10 min 即達。</div>
+    <div class="pc-user-note" id="pn-2-9"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,9)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-9">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,9)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">30 分鐘 ｜ 3.7 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">2</span>
+      <span class="seg-transit-stops">望月橋 → 協進國小(民生路)</span><span class="seg-transit-time">20:06</span></div><div class="seg-transit-step"><span class="seg-transit-line bus">77</span>
+      <span class="seg-transit-stops">協進國小(金華路) → 赤崁樓</span><span class="seg-transit-time">20:24</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E8%95%AA%E9%BA%A5%E9%85%92%E9%A3%9F%20UMAI%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E5%8C%97%E5%8D%80%E9%95%B7%E5%8C%97%E8%A1%9752%E8%99%9F&query_place_id=ChIJWZ88ewB3bjQRo1bpU3bkRZA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 蕪麥酒食 UMAI</div>
+    <div class="pc-note"><span class="pc-time">22:00</span>日式居酒屋，肋眼牛排＋創意料理。僅收現金。營業到 24:00。</div>
+    <div class="pc-user-note" id="pn-2-10"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(2,10)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-2-10">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(2,10)">儲存</button>
+</div>
+
+
+</div></div>
+
+<!-- ===== DAY 3 ===== -->
+<div class="day-sec">
+<div class="day-hdr">Day 3 — 文青巡禮 × 藥膳洋食<div class="sub">孔廟→美術館→林百貨→烏木→水交社→博仁堂→和洋亭</div></div>
+<div class="day-body">
+
+
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%85%99%E6%B3%A2%E5%A4%A7%E9%A3%AF%E5%BA%97%E5%8F%B0%E5%8D%97%E9%A4%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJDygZSKp3bjQRAtS_auKYwNI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 煙波早餐</div>
+    <div class="pc-note"><span class="pc-time">07:30</span>飯店內用早餐。</div>
+    <div class="pc-user-note" id="pn-3-0"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,0)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-0">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,0)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">12 分鐘 ｜ 0.8 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E5%8D%97%E5%AD%94%E5%BB%9F%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJFbzVrGJ2bjQRkZC9jslaIgs" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 台南孔廟</div>
+    <div class="pc-note"><span class="pc-time">09:00</span>全台首學，1665 年建立。距煙波步行 3 min，早上最清幽。</div>
+    <div class="pc-user-note" id="pn-3-1"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,1)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-1">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,1)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">9 分鐘 ｜ 0.7 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E5%8D%97%E7%BE%8E%E8%A1%93%E9%A4%A8%E4%BA%8C%E9%A4%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJ7Ruxw3x2bjQRZk4MEAECIq4" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 台南美術館二館</div>
+    <div class="pc-note"><span class="pc-time">10:00</span>坂茂設計碎形屋頂建築。10:00 開門，距孔廟步行 3 min。</div>
+    <div class="pc-user-note" id="pn-3-2"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,2)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-2">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,2)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">7 分鐘 ｜ 0.5 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%9E%97%E7%99%BE%E8%B2%A8%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJrZJc4GJ2bjQRa3BRyIgtRcM" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 林百貨</div>
+    <div class="pc-note"><span class="pc-time">11:00</span>1932 日治百貨古蹟，頂樓有二戰彈痕和末廣社神社。11:00 開門。</div>
+    <div class="pc-user-note" id="pn-3-3"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,3)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-3">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,3)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">12 分鐘 ｜ 1.4 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">902</span>
+      <span class="seg-transit-stops">孔廟(臺灣文學館) → 中山國中</span><span class="seg-transit-time">11:09</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E7%83%8F%E6%9C%A8%E7%94%9C%E9%BB%9E%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJYw2mYBF3bjQR5nLPEb_1QJA" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 烏木 Wumu 甜點</div>
+    <div class="pc-note"><span class="pc-time">12:00</span>不提供訂位僅現場候位。甜點精緻數量有限，12:00 開門就到。</div>
+    <div class="pc-user-note" id="pn-3-4"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,4)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-4">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,4)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">16 分鐘 ｜ 1.1 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E6%B0%B4%E4%BA%A4%E7%A4%BE%E6%96%87%E5%8C%96%E5%9C%92%E5%8D%80%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJW7GkVtR1bjQRPbD_kb-p0_8" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">📍 水交社文化園區</div>
+    <div class="pc-note"><span class="pc-time">13:30</span>日治軍事眷村展覽空間。⚠️ 12-13 午休不開放，13:00 後入場。</div>
+    <div class="pc-user-note" id="pn-3-5"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,5)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-5">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,5)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">16 分鐘 ｜ 2.8 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">5</span>
+      <span class="seg-transit-stops">家齊高中 → 西門民權路口</span><span class="seg-transit-time">13:39</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%8D%9A%E4%BB%81%E5%A0%82%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E4%B8%AD%E8%A5%BF%E5%8D%80%E8%A5%BF%E9%96%80%E8%B7%AF%E4%BA%8C%E6%AE%B5300%E5%B7%B727%E8%99%9F&query_place_id=ChIJYZYP4mN2bjQRVvKY0Fl3zzg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 博仁堂</div>
+    <div class="pc-note"><span class="pc-time">14:30</span>米其林必比登 x4 百年中藥行。十全/四物/八珍藥膳，含主食＋甜點。</div>
+    <div class="pc-user-note" id="pn-3-6"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,6)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-6">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,6)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚶</span>
+    <span class="seg-info">14 分鐘 ｜ 0.9 km</span>
+    <span class="seg-line"></span>
+  </div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E4%B8%87%E8%8C%B6%E5%B7%9D%2C%20Tainan%2C%20Taiwan&query_place_id=ChIJ6fogxUd3bjQR-VXrP12iIqg" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">☕ 万茶川</div>
+    <div class="pc-note"><span class="pc-time">15:45</span>博仁堂到和洋亭之間空檔，來杯抹茶。</div>
+    <div class="pc-user-note" id="pn-3-7"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,7)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-7">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,7)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">12 分鐘 ｜ 2.1 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line bus">藍幹線</span>
+      <span class="seg-transit-stops">小西門(府前路) → 臺南火車站(中山路D)</span><span class="seg-transit-time">15:46</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=%E5%92%8C%E6%B4%8B%E4%BA%AD%20%E7%9C%9F%E5%A4%8F%20Manatsu%2C%20%E5%8F%B0%E5%8D%97%E5%B8%82%E4%B8%AD%E8%A5%BF%E5%8D%80%E5%8C%97%E9%96%80%E8%B7%AF%E4%B8%80%E6%AE%B5141%E5%B7%B72%E8%99%9F&query_place_id=ChIJx7BkVQB3bjQRggT-VmNzwFU" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🍜 和洋亭 真夏</div>
+    <div class="pc-note"><span class="pc-time">17:00</span>日本人主廚洋食屋，台灣溫體牛漢堡排。已預約確認。</div>
+    <div class="pc-user-note" id="pn-3-8"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,8)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-8">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,8)">儲存</button>
+</div>
+
+
+
+  
+  
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+      
+    
+  
+  
+    
+<div class="travel-seg">
+  <div class="seg-main">
+    <span class="seg-icon">🚇</span>
+    <span class="seg-info">32 分鐘 ｜ 17.8 km</span>
+    <span class="seg-line"></span>
+  </div><div class="seg-transit"><div class="seg-transit-step"><span class="seg-transit-line rail">Local Train</span>
+      <span class="seg-transit-stops">台南車站 → 沙崙</span><span class="seg-transit-time">17:07</span></div></div></div>
+  
+
+
+
+
+<a class="place" href="https://www.google.com/maps/search/?api=1&query=HSR%20Tainan%20Station%2C%20Taiwan&query_place_id=ChIJfXKoA6ZzbjQRrgQ9yogpRsI" target="_blank">
+
+  <div class="pc">
+    <div class="pc-title">🚊 前往高鐵台南站</div>
+    <div class="pc-note"><span class="pc-time">19:00</span>Uber ~20 min。末班車約 21:30-22:00。</div>
+    <div class="pc-user-note" id="pn-3-9"></div>
+  </div>
+  <button class="place-edit-btn" onclick="event.preventDefault();event.stopPropagation();togglePlaceNote(3,9)" title="備註">&#9998;</button>
+  <div class="arrow">&#8250;</div>
+</a>
+<div class="place-note-editor" id="pne-3-9">
+  <textarea placeholder="加入備註..."></textarea>
+  <button onclick="savePlaceNote(3,9)">儲存</button>
+</div>
+
+
+</div></div>
+
+</div>
+
+<!-- ==================== 地圖 TAB ==================== -->
+<div id="map-panel">
+  <div class="map-ctrl" id="mapBtns">
+    <button class="active" onclick="mf('all',this)">全部</button>
+    
+    <button onclick="mf('d1',this)">Day 1</button>
+    
+    <button onclick="mf('d2',this)">Day 2</button>
+    
+    <button onclick="mf('d3',this)">Day 3</button>
+    
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- ==================== 清單 TAB ==================== -->
+<div id="checklist">
+  <div class="cl-sec" id="cl-todo"></div>
+  <div class="cl-sec" id="cl-reservations"></div>
+  <div class="cl-sec" id="cl-packing"></div>
+</div>
+
+<!-- ==================== 實用資訊 TAB ==================== -->
+<div id="info">
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px;overflow:hidden">
+  <span style="font-size:14px;font-weight:500;color:#1a5276;white-space:nowrap">📅 行程日曆</span>
+  <a href="calendar.ics" download="tainan-2026-04.ics" style="flex-shrink:0;padding:8px 16px;background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap">📥 下載 .ics</a>
+</div>
+
+  <div class="card">
+    <h3>預算概覽（一人）</h3>
+    
+      
+        
+        
+        <table class="tbl">
+          
+          <tr>
+            
+            <th>項目</th>
+            
+            <th>預估</th>
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>高鐵來回（新竹↔台南）</td>
+              
+            
+              
+            <td>~1,500 元（早鳥 65 折）</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>住宿兩晚</td>
+              
+            
+              
+            <td>~4,000-6,000 元</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>餐飲（3 天）</td>
+              
+            
+              
+            <td>~3,000-5,000 元</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>VR《消失的法老》</td>
+              
+            
+              
+            <td>680 元（線上預購）</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>門票/景點</td>
+              
+            
+              
+            <td>~200-500 元</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>WeMo 租借</td>
+              
+            
+              
+            <td>~300-500 元（3 天）</td>
+              
+            
+          </tr>
+          
+          
+            
+          <tr>
+            
+            
+              
+            <td>Uber（高鐵接駁）</td>
+              
+            
+              
+            <td>~300-400 元</td>
+              
+            
+          </tr>
+          
+        </table>
+      
+      
+      <p style="margin-top:8px;font-size:12px;color:#888">總計約 10,000-14,000 元/人</p>
+      
+    
+  </div>
+
+  <div class="card">
+    <h3>交通</h3>
+    
+      <p>主要交通工具為 WeMo 共享機車。市區景點多在中西區，步行+機車為主。奇美博物館在仁德區（高鐵站附近），回程建議 Uber 到高鐵站（~20 min）。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>天氣（4 月中旬）</h3>
+    
+      <p>日均 25-30°C，偶有午後雷陣雨。早晚舒適，正午偏熱。戶外景點已盡量避開正午，但建議攜帶防曬、帽子和輕便雨具。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>運河百年活動（4/1-6/30）</h3>
+    
+      <p>2026 年是台南運河通航 100 週年。燈光裝置展演每日 18:00-21:00（望月橋至安億橋段）。另有百年特展「運河有影」於咾咕石芳宅展出至 5/3、運河咖啡市集、美食船班等活動。</p>
+    
+  </div>
+
+  <div class="card">
+    <h3>注意事項</h3>
+    
+      <p>多家餐廳僅收現金（森根、蕪麥、Moonrock 現場候位），建議備足現金。小吃店（江川肉燥飯、阿興虱目魚）賣完提早打烊，儘早前往。小滿西點週六日公休，只有週五能去。</p>
+    
+  </div>
+
+</div>
+
+<!-- ==================== Floating Notes Button ==================== -->
+<button class="notes-fab" onclick="toggleNotes()" title="筆記">&#128221;</button>
+<div class="notes-panel" id="notesPanel">
+  <div class="notes-panel-hdr">
+    <span>&#128221; 旅行筆記</span>
+    <button onclick="toggleNotes()">&#215;</button>
+  </div>
+  <textarea id="notesArea" placeholder="在這裡記錄你的旅行筆記..."></textarea>
+</div>
+
+<script>
+// Tab switch
+function sw(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['itin','map-panel','checklist','info'].forEach(p=>document.getElementById(p).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='map-panel'&&!mapReady)initMap();
+}
+
+// ===== Notes =====
+const NOTES_KEY='trip-plan:tainan-2026-04:notes';
+function toggleNotes(){
+  const panel=document.getElementById('notesPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    const area=document.getElementById('notesArea');
+    try{area.value=localStorage.getItem(NOTES_KEY)||''}catch(e){}
+    area.focus();
+  }
+}
+document.getElementById('notesArea').addEventListener('input',function(){
+  try{localStorage.setItem(NOTES_KEY,this.value)}catch(e){}
+});
+
+// Click outside to close notes panel
+document.addEventListener('click',function(e){
+  var panel=document.getElementById('notesPanel');
+  var fab=document.querySelector('.notes-fab');
+  if(panel.classList.contains('open')&&!panel.contains(e.target)&&!fab.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+// ===== Place Notes =====
+const PLACE_NOTES_KEY='trip-plan:tainan-2026-04:place-notes';
+function getPlaceNotes(){try{var s=localStorage.getItem(PLACE_NOTES_KEY);if(s)return JSON.parse(s)}catch(e){}return{}}
+function savePlaceNotes(data){try{localStorage.setItem(PLACE_NOTES_KEY,JSON.stringify(data))}catch(e){}}
+
+function togglePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var isOpen=editor.style.display==='block';
+  // Close all editors first
+  document.querySelectorAll('.place-note-editor').forEach(function(el){el.style.display='none'});
+  if(!isOpen){
+    editor.style.display='block';
+    var notes=getPlaceNotes();
+    var key=day+'-'+idx;
+    var ta=editor.querySelector('textarea');
+    ta.value=notes[key]||'';
+    ta.focus();
+  }
+}
+
+function savePlaceNote(day,idx){
+  var editorId='pne-'+day+'-'+idx;
+  var editor=document.getElementById(editorId);
+  if(!editor)return;
+  var ta=editor.querySelector('textarea');
+  var val=ta.value.trim();
+  var notes=getPlaceNotes();
+  var key=day+'-'+idx;
+  if(val){
+    notes[key]=val;
+  } else {
+    delete notes[key];
+  }
+  savePlaceNotes(notes);
+  editor.style.display='none';
+  // Update display
+  var dispEl=document.getElementById('pn-'+day+'-'+idx);
+  if(dispEl){dispEl.textContent=val}
+  // Update pencil icon
+  var editBtn=editor.previousElementSibling;
+  if(editBtn){
+    var pencilBtn=editBtn.querySelector('.place-edit-btn');
+    if(!pencilBtn){
+      // The editBtn IS the <a>, look within it
+      pencilBtn=editBtn.querySelector('.place-edit-btn');
+    }
+  }
+  updatePlaceNoteIndicators();
+}
+
+function updatePlaceNoteIndicators(){
+  var notes=getPlaceNotes();
+  document.querySelectorAll('.place-edit-btn').forEach(function(btn){
+    // Get day,idx from the sibling editor
+    var onclick=btn.getAttribute('onclick');
+    var match=onclick&&onclick.match(/togglePlaceNote\((\d+),(\d+)\)/);
+    if(match){
+      var key=match[1]+'-'+match[2];
+      if(notes[key]){
+        btn.classList.add('has-note');
+      } else {
+        btn.classList.remove('has-note');
+      }
+    }
+  });
+  // Also update display text
+  Object.keys(notes).forEach(function(key){
+    var el=document.getElementById('pn-'+key);
+    if(el)el.textContent=notes[key];
+  });
+}
+
+// Init place notes on load
+document.addEventListener('DOMContentLoaded',function(){updatePlaceNoteIndicators()});
+
+// ===== Checklist: three sections =====
+const defaultReservations=[{"label": "VR\u300a\u6d88\u5931\u7684\u6cd5\u8001\u300b\u7dda\u4e0a\u9810\u8cfc\uff08680 \u5143/\u4eba\uff09", "note": "\u5947\u7f8e\u535a\u7269\u9928\u5b98\u7db2\u8cfc\u7968\uff0c\u9078 4/17 14:00 \u5834\u6b21\uff0c\u9700\u63d0\u524d 15 min \u5831\u5230"}, {"label": "\u68ee\u6839 Sengen Studio \u8a02\u4f4d", "note": "IG @sengen_studio \u79c1\u8a0a\u8a02\u4f4d\uff0c4/17\uff08\u4e94\uff0918:15\uff0c\u50c5 4 \u684c\uff0c6 \u4eba\u4ee5\u4e0b\u53ef\u8a02"}, {"label": "Moonrock \u8a02\u4f4d", "note": "\u96fb\u8a71 06-222-9528\uff0c4/17\uff08\u4e94\uff0922:00\uff0c\u8a02\u4f4d\u4f4e\u6d88 600 \u5143"}, {"label": "\u697f Katsura \u7dda\u4e0a\u9810\u7d04", "note": "inline \u7cfb\u7d71\u9810\u7d04\uff0c4/18\uff08\u516d\uff0916:00\uff0c\u4e94\u9053\u76e4\u5f0f\u751c\u9ede 790 \u5143/\u4eba"}, {"label": "\u66c9\u7498\u78b3\u70e4 \u8a02\u4f4d", "note": "\u96fb\u8a71 06-226-1974\uff0c4/18\uff08\u516d\uff0918:00\uff0c\u78b3\u70e4\u6d77\u7522\u9700\u9810\u7d04"}, {"label": "\u548c\u6d0b\u4ead \u771f\u590f \u8a02\u4f4d", "note": "\u5df2\u9810\u7d04\u78ba\u8a8d \u2705 4/19\uff08\u65e5\uff0917:00"}, {"label": "UIJ \u53cb\u611b\u8857\u65c5\u9928\uff08Night 1\uff09", "note": "4/17 \u5165\u4f4f\uff0cBooking.com / Agoda \u6bd4\u50f9"}, {"label": "\u7159\u6ce2\u5927\u98ef\u5e97\u53f0\u5357\u9928\uff08Night 2\uff09", "note": "4/18 \u5165\u4f4f\uff0c\u5b98\u7db2\u6216 OTA \u8a02\u623f"}, {"label": "\u9ad8\u9435\u7968\uff08\u65b0\u7af9\u2192\u53f0\u5357 + \u53f0\u5357\u2192\u65b0\u7af9\uff09", "note": "4/17 \u53bb\u7a0b 07:00 \u767c\uff0c4/19 \u56de\u7a0b\u7d04 19:30-20:00\u3002\u65e9\u9ce5 65 \u6298"}];
+const defaultPacking=[{"category": "\u8b49\u4ef6", "label": "\u8eab\u5206\u8b49"}, {"category": "\u8b49\u4ef6", "label": "\u98ef\u5e97\u8a02\u623f\u78ba\u8a8d"}, {"category": "\u8b49\u4ef6", "label": "\u9ad8\u9435\u7968\uff08\u6216 App \u8a02\u7968\u622a\u5716\uff09"}, {"category": "\u8b49\u4ef6", "label": "VR \u9810\u8cfc\u7968 QR Code"}, {"category": "\u8863\u7269", "label": "T-shirt x3"}, {"category": "\u8863\u7269", "label": "\u8932\u5b50 x2"}, {"category": "\u8863\u7269", "label": "\u5167\u8932 x3"}, {"category": "\u8863\u7269", "label": "\u896a\u5b50 x3"}, {"category": "\u8863\u7269", "label": "\u5916\u5957\uff08\u8eca\u7ad9/\u5ba4\u5167\u51b7\u6c23\uff09"}, {"category": "\u8863\u7269", "label": "\u904b\u52d5\u978b"}, {"category": "\u76e5\u6d17", "label": "\u7259\u5237"}, {"category": "\u76e5\u6d17", "label": "\u7259\u818f"}, {"category": "\u76e5\u6d17", "label": "\u9632\u66ec\u4e73"}, {"category": "\u76e5\u6d17", "label": "\u6b62\u6c57\u5291"}, {"category": "\u76e5\u6d17", "label": "\u522e\u9b0d\u5200"}, {"category": "\u96fb\u5b50", "label": "\u624b\u6a5f\u5145\u96fb\u5668"}, {"category": "\u96fb\u5b50", "label": "\u8033\u6a5f"}, {"category": "\u96fb\u5b50", "label": "\u76f8\u6a5f"}, {"category": "\u96fb\u5b50", "label": "\u884c\u52d5\u96fb\u6e90"}, {"category": "\u91ab\u7642", "label": "\u6b62\u75db\u85e5"}, {"category": "\u91ab\u7642", "label": "\u9632\u868a\u6db2"}, {"category": "\u8ca1\u52d9", "label": "\u73fe\u91d1\uff08\u591a\u5bb6\u50c5\u6536\u73fe\u91d1\uff09"}, {"category": "\u8ca1\u52d9", "label": "\u4fe1\u7528\u5361"}, {"category": "\u5176\u4ed6", "label": "\u5e3d\u5b50"}, {"category": "\u5176\u4ed6", "label": "\u58a8\u93e1"}, {"category": "\u5176\u4ed6", "label": "\u8f15\u4fbf\u96e8\u5177"}];
+const defaultTodo=[{"hint": "Google Maps \u672a\u6536\u9304\uff0c\u51fa\u767c\u524d\u518d\u67e5 IG @sengen_studio \u9650\u52d5", "label": "\u78ba\u8a8d\u68ee\u6839 4/17 \u6709\u71df\u696d"}, {"hint": "\u9031\u516d\u65e5\u516c\u4f11\uff0c\u9031\u4e94\u624d\u958b\u3002\u51fa\u767c\u524d\u67e5 IG @chaoticbox_may21 \u9650\u52d5\u78ba\u8a8d", "label": "\u78ba\u8a8d\u5c0f\u6eff\u897f\u9ede 4/17 \u6709\u71df\u696d"}, {"hint": "\u78ba\u8a8d WeMo \u53f0\u5357\u6709\u8eca\u53ef\u79df\uff0c\u8003\u616e\u62b5\u9054\u9ad8\u9435\u7ad9\u9644\u8fd1\u53d6\u8eca\u9ede", "label": "WeMo \u53f0\u5357\u670d\u52d9\u5340\u78ba\u8a8d"}, {"hint": "\u68ee\u6839\u3001\u856a\u9ea5\u3001Moonrock \u73fe\u5834\u5019\u4f4d\u3001\u90e8\u5206\u5c0f\u5403\u6524\u50c5\u6536\u73fe\u91d1", "label": "\u5e36\u73fe\u91d1"}, {"hint": "4 \u6708\u53f0\u5357\u65e5\u5747 25-30\u00b0C\uff0c\u6236\u5916\u666f\u9ede\uff08\u5b54\u5edf\u3001\u8d64\u5d01\u6a13\u3001\u795e\u8fb2\u8857\uff09\u9700\u9632\u66ec", "label": "\u9632\u66ec + \u5e3d\u5b50 + \u58a8\u93e1"}, {"hint": "4 \u6708\u5076\u6709\u5348\u5f8c\u96f7\u9663\u96e8", "label": "\u8f15\u4fbf\u96e8\u5177"}, {"hint": "\u4e09\u5929\u5bc6\u96c6\u884c\u7a0b + WeMo \u9700\u624b\u6a5f\u5c0e\u822a\uff0c\u96fb\u91cf\u6d88\u8017\u5feb", "label": "\u884c\u52d5\u96fb\u6e90"}];
+
+const RES_KEY='trip-plan:tainan-2026-04:reservations';
+const PACK_KEY='trip-plan:tainan-2026-04:packing';
+const TODO_KEY='trip-plan:tainan-2026-04:todo';
+const COLLAPSE_KEY='trip-plan:tainan-2026-04:cl-collapse';
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;')}
+
+function lsGet(key,fallback){try{var s=localStorage.getItem(key);if(s)return JSON.parse(s)}catch(e){}return fallback}
+function lsSet(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch(e){}}
+
+function getCollapse(){return lsGet(COLLAPSE_KEY,{reservations:false,packing:false,todo:false})}
+function setCollapse(c){lsSet(COLLAPSE_KEY,c)}
+function toggleCollapse(sec){var c=getCollapse();c[sec]=!c[sec];setCollapse(c);renderAllCl()}
+
+// ---- Data migration for reservations ----
+function migrateRes(items){
+  return items.map(function(item){
+    if(item.platform||item.confirmation||item.amount||item.url){
+      var parts=[];
+      if(item.platform)parts.push('平台: '+item.platform);
+      if(item.confirmation)parts.push('確認碼: '+item.confirmation);
+      if(item.amount)parts.push('金額: '+item.amount);
+      if(item.url)parts.push('連結: '+item.url);
+      if(item.note)parts.push(item.note);
+      item.note=parts.join('\n');
+      delete item.platform;delete item.confirmation;delete item.amount;delete item.url;
+    }
+    return item;
+  });
+}
+
+// ---- Reservations (simplified - same as Todo but with date) ----
+function getRes(){
+  var data=lsGet(RES_KEY,defaultReservations.map(function(d){return Object.assign({},d,{done:false})}));
+  return migrateRes(data);
+}
+function saveRes(data){lsSet(RES_KEY,data)}
+
+var resEditIdx=-1;
+function renderRes(){
+  var el=document.getElementById('cl-reservations');
+  var items=getRes();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  var resSorted=items.map(function(item,i){return{item:item,idx:i}});
+  resSorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'reservations\')"><span class="cl-emoji">&#128197;</span> 訂位<span class="cl-arrow">'+(col.reservations?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.reservations?' collapsed':'')+'">';
+  resSorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    // Format date for badge
+    var dateBadge='';
+    if(item.date){
+      var dateStr=item.date;
+      // Try to show short format like "5/15"
+      var dm=dateStr.match(/(\d{1,2})[-\/](\d{1,2})$/);
+      if(dm){dateStr=parseInt(dm[1])+'/'+parseInt(dm[2])}
+      else{
+        var fullm=dateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+        if(fullm)dateStr=parseInt(fullm[2])+'/'+parseInt(fullm[3]);
+      }
+      dateBadge='<span class="res-date-badge">'+esc(dateStr)+'</span>';
+    }
+    if(resEditIdx===i){
+      // Edit mode
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="resToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info" onclick="event.stopPropagation()">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      // Edit form below
+      h+='<div class="cl-edit-form" id="res-edit-'+i+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div>';
+      h+='<input id="res-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">日期</div>';
+      h+='<input id="res-e-date-'+i+'" type="date" value="'+escAttr(item.date||'')+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">說明</div>';
+      h+='<textarea id="res-e-note-'+i+'" rows="3" style="resize:vertical">'+esc(item.note||'')+'</textarea>';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="resHideEdit()">取消</button><button class="cl-btn-ok" onclick="resSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      // Display mode: checkbox + label + date badge + pencil + trash
+      h+='<div class="cl-item '+ck+'" onclick="resToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<div class="cl-label">'+esc(item.label)+dateBadge+'</div>';
+      if(item.note){h+='<div class="cl-hint">'+esc(item.note).replace(/\n/g,'<br>')+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();resShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();resDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="res-add-btn" onclick="resShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="res-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">名稱</div><input id="res-input-label" placeholder="輸入訂位名稱..." onkeydown="if(event.key===\'Enter\')resAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="resHideAdd()">取消</button><button class="cl-btn-ok" onclick="resAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(resEditIdx>=0){var inp=document.getElementById('res-e-label-'+resEditIdx);if(inp)inp.focus()}
+}
+function resToggle(i){var d=getRes();d[i].done=!d[i].done;saveRes(d);renderRes()}
+function resDel(i){var d=getRes();d.splice(i,1);saveRes(d);resEditIdx=-1;renderRes()}
+function resShowAdd(){document.getElementById('res-add-btn').style.display='none';document.getElementById('res-add-form').style.display='flex';document.getElementById('res-input-label').focus()}
+function resHideAdd(){document.getElementById('res-add-btn').style.display='flex';document.getElementById('res-add-form').style.display='none';document.getElementById('res-input-label').value=''}
+function resAdd(){var v=document.getElementById('res-input-label').value.trim();if(!v)return;var d=getRes();d.push({label:v,done:false});saveRes(d);renderRes()}
+function resShowEdit(i){resEditIdx=(resEditIdx===i)?-1:i;renderRes()}
+function resHideEdit(){resEditIdx=-1;renderRes()}
+function resSaveEdit(i){
+  var label=document.getElementById('res-e-label-'+i).value.trim();
+  if(!label)return;
+  var d=getRes();
+  d[i].label=label;
+  d[i].date=document.getElementById('res-e-date-'+i).value.trim();
+  d[i].note=document.getElementById('res-e-note-'+i).value.trim();
+  saveRes(d);resEditIdx=-1;renderRes();
+}
+
+// ---- Packing (TREK-style category cards) ----
+var PACK_COLORS=['#3b82f6','#a855f7','#ec4899','#22c55e','#f97316','#06b6d4','#ef4444','#eab308','#8b5cf6','#14b8a6'];
+function catColor(cat,allCats){
+  var idx=allCats?allCats.indexOf(cat):-1;
+  if(idx>=0)return PACK_COLORS[idx%PACK_COLORS.length];
+  var h=0;for(var i=0;i<cat.length;i++)h=((h<<5)-h+cat.charCodeAt(i))|0;
+  return PACK_COLORS[Math.abs(h)%PACK_COLORS.length];
+}
+
+function getPack(){
+  var stored=lsGet(PACK_KEY,null);
+  if(stored===null||(Array.isArray(stored)&&stored.length===0&&defaultPacking.length>0)){
+    var fresh=defaultPacking.map(function(d){return Object.assign({},d,{done:false})});
+    savePack(fresh);
+    return fresh;
+  }
+  return stored;
+}
+function savePack(data){lsSet(PACK_KEY,data)}
+
+var packEditIdx=-1;
+var packOpenMenuCat=null;
+var packAddingCat=false;
+var packAddingItemCat=null; // which category is showing the inline add form
+var packCollapsed={}; // track collapsed categories
+
+function getPackCollapsed(){return lsGet(PACK_KEY+':collapsed',{})}
+function setPackCollapsed(data){lsSet(PACK_KEY+':collapsed',data)}
+
+function renderPack(){
+  var el=document.getElementById('cl-packing');
+  var items=getPack();
+  var col=getCollapse();
+
+  // Group by category
+  var groups={};var catOrder=[];
+  items.forEach(function(item,i){
+    var cat=item.category||'其他';
+    if(!groups[cat]){groups[cat]=[];catOrder.push(cat)}
+    groups[cat].push(Object.assign({},item,{_idx:i}));
+  });
+  // Move '其他' to end
+  var otherIdx=catOrder.indexOf('其他');
+  if(otherIdx>-1&&otherIdx<catOrder.length-1){catOrder.splice(otherIdx,1);catOrder.push('其他')}
+
+  var allCats=catOrder.filter(function(c){return c!=='其他'});
+  var catCollapsed=getPackCollapsed();
+
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'packing\')"><span class="cl-emoji">&#129523;</span> 行李清單<span class="cl-arrow">'+(col.packing?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-body'+(col.packing?' collapsed':'')+'" style="background:transparent;padding:4px 0">';
+
+  catOrder.forEach(function(cat){
+    var color=catColor(cat,allCats);
+    var catItems=groups[cat];
+    catItems.sort(function(a,b){return(a.done?1:0)-(b.done?1:0)});
+    var catDone=catItems.filter(function(it){return it.done}).length;
+    var isCollapsed=catCollapsed[cat]===true;
+    var allChecked=catItems.length>0&&catDone===catItems.length;
+
+    h+='<div class="pk-card">';
+    // Header
+    h+='<div class="pk-card-hdr'+(isCollapsed?'':' open')+'" onclick="packToggleCat(\''+escAttr(cat)+'\')">';
+    h+='<span class="pk-chevron">'+(isCollapsed?'&#9654;':'&#9660;')+'</span>';
+    h+='<span class="pk-dot" style="background:'+color+'"></span>';
+    h+='<span class="pk-cat-name">'+esc(cat)+'</span>';
+    h+='<span class="pk-count'+(allChecked?' all-done':'')+'">'+catDone+'/'+catItems.length+'</span>';
+    h+='<span class="pk-menu-btn" onclick="event.stopPropagation();packToggleMenu(\''+escAttr(cat)+'\')" style="position:relative">&#8943;';
+    if(packOpenMenuCat===cat){
+      h+='<div class="pk-dropdown open">';
+      h+='<button onclick="event.stopPropagation();packRenameCat(\''+escAttr(cat)+'\')">重新命名</button>';
+      h+='<button onclick="event.stopPropagation();packCheckAllCat(\''+escAttr(cat)+'\')">全部勾選</button>';
+      h+='<button onclick="event.stopPropagation();packUncheckAllCat(\''+escAttr(cat)+'\')">取消全部勾選</button>';
+      h+='<button class="danger" onclick="event.stopPropagation();packDelCat(\''+escAttr(cat)+'\')">刪除分類</button>';
+      h+='</div>';
+    }
+    h+='</span>';
+    h+='</div>';
+
+    // Body
+    h+='<div class="pk-card-body'+(isCollapsed?' collapsed':'')+'">';
+    catItems.forEach(function(item){
+      var i=item._idx;
+      var ck=item.done?'checked':'';
+      h+='<div class="pk-item '+ck+'" data-pack-idx="'+i+'" onclick="packToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<span class="pk-name">'+esc(item.label)+'</span>';
+      h+='<span class="pk-actions">';
+      h+='<button class="pk-act-btn" onclick="event.stopPropagation();packShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="pk-act-btn del" onclick="event.stopPropagation();packDel('+i+')" title="刪除">&#215;</button>';
+      h+='</span>';
+      h+='</div>';
+      if(packEditIdx===i){
+        h+='<div class="cl-edit-form">';
+        h+='<div style="font-size:12px;color:#888;margin-bottom:2px">物品名稱</div>';
+        h+='<input id="pk-edit-input-'+i+'" value="'+escAttr(item.label)+'">';
+        h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="packCancelEdit()">取消</button><button class="cl-btn-ok" onclick="packSaveEdit('+i+',document.getElementById(\'pk-edit-input-'+i+'\').value)">儲存</button></div>';
+        h+='</div>';
+      }
+    });
+
+    // Inline add
+    if(packAddingItemCat===cat){
+      h+='<div class="pk-inline-add-form" id="pk-add-form-'+escAttr(cat)+'">';
+      h+='<input id="pk-add-input-'+escAttr(cat)+'" placeholder="新增物品..." onkeydown="if(event.key===\'Enter\')packAddItem(\''+escAttr(cat)+'\');if(event.key===\'Escape\')packHideAddItem()">';
+      h+='<button class="pk-add-ok" onclick="packAddItem(\''+escAttr(cat)+'\')">+</button>';
+      h+='<button class="pk-add-cancel" onclick="packHideAddItem()">&#215;</button>';
+      h+='</div>';
+    } else {
+      h+='<div class="pk-inline-add" onclick="packShowAddItem(\''+escAttr(cat)+'\')"><span style="font-size:16px;margin-right:4px">+</span> 新增</div>';
+    }
+    h+='</div>'; // pk-card-body
+    h+='</div>'; // pk-card
+  });
+
+  // Add new category
+  if(packAddingCat){
+    h+='<div class="pk-add-cat-form" id="pk-add-cat-form">';
+    h+='<input id="pk-add-cat-input" placeholder="分類名稱..." onkeydown="if(event.key===\'Enter\')packAddCat();if(event.key===\'Escape\'){packAddingCat=false;renderPack()}">';
+    h+='<button class="pk-btn-ok" onclick="packAddCat()">新增</button>';
+    h+='<button class="pk-btn-cancel" onclick="packAddingCat=false;renderPack()">取消</button>';
+    h+='</div>';
+  } else {
+    h+='<div class="pk-add-cat" onclick="packAddingCat=true;renderPack()"><span style="font-size:16px;margin-right:4px">+</span> 新增分類</div>';
+  }
+
+  h+='</div>'; // cl-body
+  el.innerHTML=h;
+
+  // Focus inputs
+  if(packEditIdx>=0){var inp=document.getElementById('pk-edit-input-'+packEditIdx);if(inp){inp.focus();inp.select()}}
+  if(packAddingCat){var catInp=document.getElementById('pk-add-cat-input');if(catInp)catInp.focus()}
+  if(packAddingItemCat){var addInp=document.getElementById('pk-add-input-'+packAddingItemCat);if(addInp)addInp.focus()}
+}
+
+function packToggle(i){var d=getPack();d[i].done=!d[i].done;savePack(d);renderPack()}
+function packDel(i){var d=getPack();d.splice(i,1);savePack(d);packEditIdx=-1;renderPack()}
+
+function packShowEdit(i){
+  packEditIdx=i;
+  renderPack();
+  var inp=document.getElementById('pk-edit-input-'+i);if(inp)inp.focus();
+}
+function packSaveEdit(i,val){
+  val=val.trim();
+  if(!val){packCancelEdit();return}
+  var d=getPack();d[i].label=val;savePack(d);
+  packEditIdx=-1;
+  renderPack();
+}
+function packCancelEdit(){
+  packEditIdx=-1;
+  renderPack();
+}
+
+function packToggleCat(cat){
+  var cc=getPackCollapsed();
+  cc[cat]=!cc[cat];
+  setPackCollapsed(cc);
+  renderPack();
+}
+
+function packToggleMenu(cat){
+  packOpenMenuCat=(packOpenMenuCat===cat)?null:cat;
+  renderPack();
+}
+
+function packRenameCat(cat){
+  var newName=prompt('重新命名分類:',cat);
+  if(!newName||!newName.trim()||newName.trim()===cat){packOpenMenuCat=null;renderPack();return}
+  newName=newName.trim();
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.category=newName});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packCheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=true});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packUncheckAllCat(cat){
+  var d=getPack();
+  d.forEach(function(item){if((item.category||'其他')===cat)item.done=false});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packDelCat(cat){
+  if(!confirm('確定刪除「'+cat+'」分類及其所有物品？'))return;
+  var d=getPack().filter(function(item){return(item.category||'其他')!==cat});
+  savePack(d);
+  packOpenMenuCat=null;
+  renderPack();
+}
+
+function packShowAddItem(cat){
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packHideAddItem(){
+  packAddingItemCat=null;
+  renderPack();
+}
+
+function packAddItem(cat){
+  var inp=document.getElementById('pk-add-input-'+cat);
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  var d=getPack();
+  d.push({label:v,category:cat==='其他'?'':cat,done:false});
+  savePack(d);
+  // Keep input focused for rapid entry
+  inp.value='';
+  renderPack();
+  // Re-focus after render
+  packAddingItemCat=cat;
+  renderPack();
+}
+
+function packAddCat(){
+  var inp=document.getElementById('pk-add-cat-input');
+  if(!inp)return;
+  var v=inp.value.trim();
+  if(!v)return;
+  // Add a placeholder item in this category to create it
+  var d=getPack();
+  d.push({label:'(新物品)',category:v,done:false});
+  savePack(d);
+  packAddingCat=false;
+  // Open inline add for the new category immediately
+  packAddingItemCat=v;
+  renderPack();
+}
+
+// Close packing menu when clicking outside
+document.addEventListener('click',function(e){
+  if(packOpenMenuCat&&!e.target.closest('.pk-menu-btn')){
+    packOpenMenuCat=null;
+    renderPack();
+  }
+});
+
+// ---- Todo (with pencil icon) ----
+function getTodo(){return lsGet(TODO_KEY,defaultTodo.map(function(d){return Object.assign({},d,{done:false})}))}
+function saveTodo(data){lsSet(TODO_KEY,data)}
+
+var todoEditIdx=-1;
+function renderTodo(){
+  var el=document.getElementById('cl-todo');
+  var items=getTodo();
+  var col=getCollapse();
+  var done=items.filter(function(i){return i.done}).length;
+  // Sort: unchecked first, then checked
+  var sorted=items.map(function(item,i){return{item:item,idx:i}});
+  sorted.sort(function(a,b){return(a.item.done?1:0)-(b.item.done?1:0)});
+  var h='<div class="cl-hdr" onclick="toggleCollapse(\'todo\')"><span class="cl-emoji">&#9989;</span> 待辦清單<span class="cl-arrow">'+(col.todo?'&#9654;':'&#9660;')+'</span></div>';
+  h+='<div class="cl-progress"><div class="cl-bar"><div class="cl-bar-fill" style="width:'+(items.length?done/items.length*100:0)+'%"></div></div><span class="cl-pct">'+done+' / '+items.length+'</span></div>';
+  h+='<div class="cl-body'+(col.todo?' collapsed':'')+'">';
+  sorted.forEach(function(entry){var item=entry.item;var i=entry.idx;
+    var ck=item.done?'checked':'';
+    if(todoEditIdx===i){
+      // Edit mode: item row + edit form below (same as reservations)
+      h+='<div class="cl-item '+ck+'">';
+      h+='<div class="cl-check" onclick="todoToggle('+i+')">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info">';
+      h+='<span class="cl-label">'+esc(item.label)+'</span>';
+      if(item.hint){h+='<div class="cl-hint">'+esc(item.hint)+'</div>';}
+      h+='</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoHideEdit()" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+      h+='<div class="cl-edit-form">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div>';
+      h+='<input id="todo-e-label-'+i+'" value="'+escAttr(item.label)+'">';
+      h+='<div style="font-size:12px;color:#888;margin-bottom:2px">備註</div>';
+      h+='<input id="todo-e-hint-'+i+'" value="'+escAttr(item.hint||'')+'">';
+      h+='<div class="cl-edit-btns"><button class="cl-btn-cancel" onclick="todoHideEdit()">取消</button><button class="cl-btn-ok" onclick="todoSaveEdit('+i+')">儲存</button></div>';
+      h+='</div>';
+    } else {
+      h+='<div class="cl-item '+ck+'" onclick="todoToggle('+i+')" style="cursor:pointer">';
+      h+='<div class="cl-check">'+(item.done?'&#10003;':'')+'</div>';
+      h+='<div class="cl-info"><span class="cl-label">'+esc(item.label)+'</span>'+(item.hint?'<div class="cl-hint">'+esc(item.hint)+'</div>':'')+'</div>';
+      h+='<button class="cl-edit-btn" onclick="event.stopPropagation();todoShowEdit('+i+')" title="編輯">&#9998;</button>';
+      h+='<button class="cl-del" onclick="event.stopPropagation();todoDel('+i+')" title="刪除">&#215;</button>';
+      h+='</div>';
+    }
+  });
+  h+='<div class="cl-add" id="todo-add-btn" onclick="todoShowAdd()"><span class="cl-add-icon">+</span> 新增項目</div>';
+  h+='<div class="cl-add-form" id="todo-add-form" style="display:none"><div style="font-size:12px;color:#888;margin-bottom:2px">項目名稱</div><input id="todo-input-label" placeholder="輸入待辦事項..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();document.getElementById(\'todo-input-hint\').focus()}"><div style="font-size:12px;color:#888;margin-bottom:2px;margin-top:4px">備註</div><input id="todo-input-hint" placeholder="選填" onkeydown="if(event.key===\'Enter\')todoAdd()"><div class="cl-add-btns"><button class="cl-btn-cancel" onclick="todoHideAdd()">取消</button><button class="cl-btn-ok" onclick="todoAdd()">新增</button></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+  if(todoEditIdx>=0){var inp=document.getElementById('todo-e-label-'+todoEditIdx);if(inp)inp.focus()}
+}
+function todoToggle(i){var d=getTodo();d[i].done=!d[i].done;saveTodo(d);renderTodo()}
+function todoDel(i){var d=getTodo();d.splice(i,1);saveTodo(d);todoEditIdx=-1;renderTodo()}
+function todoShowAdd(){document.getElementById('todo-add-btn').style.display='none';document.getElementById('todo-add-form').style.display='flex';document.getElementById('todo-input-label').focus()}
+function todoHideAdd(){document.getElementById('todo-add-btn').style.display='flex';document.getElementById('todo-add-form').style.display='none';document.getElementById('todo-input-label').value='';document.getElementById('todo-input-hint').value=''}
+function todoAdd(){var v=document.getElementById('todo-input-label').value.trim();if(!v)return;var hint=document.getElementById('todo-input-hint').value.trim();var d=getTodo();d.push({label:v,hint:hint,done:false});saveTodo(d);renderTodo()}
+function todoShowEdit(i){todoEditIdx=i;renderTodo()}
+function todoHideEdit(){todoEditIdx=-1;renderTodo()}
+function todoSaveEdit(i){var inp=document.getElementById('todo-e-label-'+i);if(!inp)return;var v=inp.value.trim();if(!v){todoHideEdit();return}var d=getTodo();d[i].label=v;var hInp=document.getElementById('todo-e-hint-'+i);d[i].hint=hInp?hInp.value.trim():'';saveTodo(d);todoEditIdx=-1;renderTodo()}
+
+function renderAllCl(){renderTodo();renderRes();renderPack()}
+renderAllCl();
+
+// Map controls: position below sticky header
+(function(){
+  var sh=document.querySelector('.sticky-header');
+  var mc=document.querySelector('.map-ctrl');
+  function update(){
+    if(sh&&mc){mc.style.top=sh.offsetHeight+'px'}
+  }
+  update();
+  window.addEventListener('resize',update);
+})();
+
+// Map
+var mapReady=false,mo,markers=[];
+var colors={"drink": "#8e44ad", "flight": "#95a5a6", "food": "#e67e22", "hotel": "#e74c3c", "spot": "#27ae60", "transport": "#95a5a6", "work": "#2e86c1"};
+
+var pts=[{"c": "transport", "d": "d1", "desc": "07:00 \u767c\u8eca\uff0c\u7d04 08:30 \u62b5\u9054\u9ad8\u9435\u53f0\u5357\u7ad9\u3002", "lat": 24.808164899999998, "lng": 121.04024449999999, "maps_query": "Hsinchu HSR Station, Taiwan", "n": "\u65b0\u7af9\u9ad8\u9435\u51fa\u767c", "place_id": "ChIJpVwYXwc3aDQRQ9EpVY-_efM"}, {"c": "spot", "d": "d1", "desc": "\u8ddd\u9ad8\u9435\u7ad9\u6b65\u884c 15 min / \u63a5\u99c1\u8eca 5 min\u3002\u897f\u6d0b\u85dd\u8853\u3001\u5175\u5668\u3001\u6a02\u5668\u6536\u85cf\u3002", "lat": 22.9345608, "lng": 120.2260268, "maps_query": "\u5947\u7f8e\u535a\u7269\u9928, Tainan, Taiwan", "n": "\u5947\u7f8e\u535a\u7269\u9928", "place_id": "ChIJq6qqqnp0bjQRpvTHZeYTjKg"}, {"c": "food", "d": "d1", "desc": "\u9928\u5167\u9910\u5ef3\u6216\u8f15\u98df\u5340\u7528\u9910\uff0c\u4e0d\u7528\u8dd1\u9060\u3002", "lat": 22.9345608, "lng": 120.2260268, "maps_query": "\u5947\u7f8e\u535a\u7269\u9928, Tainan, Taiwan", "n": "\u5947\u7f8e\u535a\u7269\u9928\u5167\u5348\u9910", "place_id": "ChIJq6qqqnp0bjQRpvTHZeYTjKg"}, {"c": "spot", "d": "d1", "desc": "\u5947\u7f8e 2F VR \u9ad4\u9a57\u5ef3\uff0c~45 min\u3002\u5efa\u8b70\u7dda\u4e0a\u9810\u8cfc 680 \u5143\uff08\u73fe\u5834 800\uff09\u3002\u9700\u63d0\u524d 15 min \u5831\u5230\u3002", "lat": 22.9345608, "lng": 120.2260268, "maps_query": "\u5947\u7f8e\u535a\u7269\u9928, Tainan, Taiwan", "n": "VR\u300a\u6d88\u5931\u7684\u6cd5\u8001\u300b", "place_id": "ChIJq6qqqnp0bjQRpvTHZeYTjKg"}, {"c": "spot", "d": "d1", "desc": "\u524d\u4e2d\u570b\u57ce\u6539\u5efa\u7684\u4e0b\u6c89\u5f0f\u89aa\u6c34\u516c\u5712\uff0c\u904b\u6cb3\u767e\u5e74\u5730\u666f\u4e4b\u4e00\u3002VR \u7d50\u675f\u5f8c\u9806\u8def\u7d93\u904e\u3002", "lat": 22.9936595, "lng": 120.1940493, "maps_query": "\u6cb3\u6a02\u5ee3\u5834, Tainan, Taiwan", "n": "\u6cb3\u6a02\u5ee3\u5834", "place_id": "ChIJi1YTdnd3bjQR6TeBoScvyk0"}, {"c": "hotel", "d": "d1", "desc": "\u4e2d\u897f\u5340\u53cb\u611b\u8857\uff0c\u8001\u57ce\u5340\u6b63\u4e2d\u5fc3\u3002\u653e\u884c\u674e\u3001\u7a0d\u4f5c\u4f11\u606f\u3002", "lat": 22.990782, "lng": 120.1997872, "maps_query": "UIJ Hotel \u0026 Hostel, Tainan, Taiwan", "n": "UIJ \u53cb\u611b\u8857\u65c5\u9928 Check-in", "place_id": "ChIJmTZLr3x2bjQRZE6G_9_d5co"}, {"c": "food", "d": "d1", "desc": "\u8001\u5b85\u7fa9\u5f0f\u5275\u610f\u6599\u7406\uff0c\u624b\u5207\u9eb5\u62db\u724c\u3002\u50c5\u73fe\u91d1\u3001\u4f4e\u6d88 360\u3001\u9650\u6642 1.5hr\u3001\u50c5 4 \u684c\u3002IG: @sengen_studio\u3002", "lat": 22.9898175, "lng": 120.2088204, "maps_query": "22.9898175,120.2088204", "n": "\u68ee\u6839 Sengen Studio", "place_id": null}, {"c": "food", "d": "d1", "desc": "\u5343\u5c64\u86cb\u7cd5\u540d\u5e97\uff0c\u4e0d\u63a5\u8a02\u4f4d\u50c5\u73fe\u5834\u5019\u4f4d\uff0c\u4f4e\u6d88 150\u3002\u9031\u516d\u65e5\u516c\u4f11\uff0c\u53ea\u6709\u4eca\u5929\u80fd\u4f86\uff01", "lat": 22.9949296, "lng": 120.2331912, "maps_query": "\u5c0f\u6eff\u897f\u9ede, \u53f0\u5357\u5e02\u6771\u5340\u6771\u5e73\u8def38\u865f", "n": "\u5c0f\u6eff\u897f\u9ede", "place_id": "ChIJma7PeTB3bjQRVvj_wCd8GmE"}, {"c": "drink", "d": "d1", "desc": "\u4e9e\u6d32\u767e\u5927\u9152\u5427\u3002\u8a02\u4f4d\u4f4e\u6d88 600\uff0c\u73fe\u5834\u5019\u4f4d\u4f4e\u6d88 350\u3002\u96fb\u8a71 06-222-9528\u3002", "lat": 22.998893, "lng": 120.2100379, "maps_query": "Moonrock Bar, \u53f0\u5357\u5e02\u5317\u5340\u6210\u529f\u8def22\u5df742\u5f0413\u865f", "n": "Moonrock", "place_id": "ChIJ0RYVUJ13bjQRHTxc4fv1wBs"}, {"c": "food", "d": "d2", "desc": "\u98ef\u5e97\u5167\u7528\u65e9\u9910\u3002", "lat": 22.990782, "lng": 120.1997872, "maps_query": "UIJ Hotel \u0026 Hostel, Tainan, Taiwan", "n": "UIJ \u65e9\u9910", "place_id": "ChIJmTZLr3x2bjQRZE6G_9_d5co"}, {"c": "spot", "d": "d2", "desc": "\u53f0\u5357\u7d93\u5178\u53e4\u8e5f\uff0c\u8377\u862d\u6642\u671f\u666e\u7f85\u6c11\u906e\u57ce\u907a\u8de1\u3002\u8ddd UIJ \u6b65\u884c 10 min\u3002", "lat": 22.997477999999997, "lng": 120.2025433, "maps_query": "\u8d64\u5d01\u6a13, Tainan, Taiwan", "n": "\u8d64\u5d01\u6a13", "place_id": "ChIJbYl7d2F2bjQRnFdvyMBuZfI"}, {"c": "spot", "d": "d2", "desc": "\u6e05\u4ee3\u5546\u696d\u8001\u8857\uff0c\u73fe\u70ba\u6587\u9752\u8001\u5c4b\u805a\u843d\u3002\u65e9\u4e0a\u5149\u7dda\u597d\u3001\u4eba\u5c11\u3002", "lat": 22.9975666, "lng": 120.1965462, "maps_query": "\u795e\u8fb2\u8857, Tainan, Taiwan", "n": "\u795e\u8fb2\u8857\u6563\u6b65", "place_id": "ChIJn4ahgmZ2bjQRRpYB7Ku1hcU"}, {"c": "food", "d": "d2", "desc": "\u570b\u83ef\u8857\u7d93\u5178\u5c0f\u5403\uff0c\u4e00\u7897\u8089\u71e5\u98ef\uff0b\u4e00\u7897\u6e6f\u3002\u9031\u4e94\u516c\u4f11\u6392\u5728\u4eca\u5929\u3002", "lat": 22.997624599999998, "lng": 120.19918829999999, "maps_query": "\u6c5f\u5ddd\u8089\u71e5\u98ef, Tainan, Taiwan", "n": "\u6c5f\u5ddd\u8089\u71e5\u98ef", "place_id": "ChIJI_R0smZ2bjQRIzI5k0tghek"}, {"c": "food", "d": "d2", "desc": "\u8671\u76ee\u9b5a\u7ca5/\u6e6f\u540d\u5e97\u3002\u26a0\ufe0f \u53ea\u5230 14:00\uff0c\u5225\u9072\u5230\u3002", "lat": 23.0065447, "lng": 120.19343710000001, "maps_query": "\u963f\u8208\u8671\u76ee\u9b5a, Tainan, Taiwan", "n": "\u963f\u8208\u8671\u76ee\u9b5a", "place_id": "ChIJuxJOSF12bjQRpgwW8ihY0JA"}, {"c": "spot", "d": "d2", "desc": "\u5348\u98ef\u5f8c\u9806\u8def\u901b\uff0c\u963f\u8208\u65c1 300m\u3002\u626d\u86cb\u3001\u76f2\u76d2\u3001\u4e00\u756a\u8cde\u3002", "lat": 23.004071099999997, "lng": 120.1923079, "maps_query": "Toy Daddy \u626d\u86cb, Tainan, Taiwan", "n": "Toy Daddy \u626d\u86cb\u9078\u7269", "place_id": "ChIJaer-wJ93bjQRUg7-_N8AJSo"}, {"c": "drink", "d": "d2", "desc": "\u677f\u524d\u5f0f\u8679\u5438\u5496\u5561\uff0c\u878d\u5408\u8abf\u9152\u624b\u6cd5\u3002\u897f\u9580\u8def\u8001\u5b85\u5df7\u5f04\u3002", "lat": 22.9894619, "lng": 120.19859220000001, "maps_query": "SJ\u00d3 \u54bb\u5496\u5561, \u53f0\u5357\u5e02\u4e2d\u897f\u5340\u897f\u9580\u8def\u4e00\u6bb5734\u5df716\u5f041\u865f", "n": "SJ\u00d3 \u54bb\u5496\u5561", "place_id": "ChIJ3w8cDgB3bjQRNA2RvG5vLIU"}, {"c": "food", "d": "d2", "desc": "\u9810\u7d04\u5236\u65e5\u6cd5\u76e4\u5f0f\u751c\u9ede\uff0c\u4e94\u9053\u5957\u9910 790/\u4eba\u3002\u5165\u53e3\u5728\u65b0\u7f8e\u8857\u5074 3F\u3002\u9700 inline \u7dda\u4e0a\u9810\u7d04\u3002", "lat": 22.9974702, "lng": 120.20108540000001, "maps_query": "\u697f Katsura \u751c\u9ede, \u53f0\u5357\u5e02\u4e2d\u897f\u5340\u6c11\u65cf\u8def\u4e8c\u6bb5260\u865f", "n": "\u697f Katsura Dessert", "place_id": "ChIJVVVGaWF2bjQR2WpS7Wf7DC0"}, {"c": "food", "d": "d2", "desc": "\u8fd1 30 \u5e74\u78b3\u70e4\u6d77\u7522\u8001\u5e97\uff0c\u6c5f\u632f\u8aa0\u63a8\u85a6\u3002\u70e4\u96de\u7fc5\u3001\u70e4\u6392\u9aa8\u62db\u724c\u3002\u9700\u9810\u7d04 06-226-1974\u3002", "lat": 22.998319, "lng": 120.19895199999998, "maps_query": "\u66c9\u7498\u78b3\u70e4\u6d77\u7522, \u53f0\u5357\u5e02\u4e2d\u897f\u5340\u570b\u83ef\u8857\u4e09\u6bb5203\u865f", "n": "\u66c9\u7498\u78b3\u70e4", "place_id": "ChIJTTsCtmZ2bjQR7PgvwM6MAiY"}, {"c": "spot", "d": "d2", "desc": "\u53f0\u5357\u904b\u6cb3\u767e\u5e74\u6176\u5178\uff01\u671b\u6708\u6a4b\u81f3\u627f\u5929\u6a4b\u3001\u5b89\u5104\u6a4b\u6bb5\u3002\u66c9\u7498\u51fa\u4f86 WeMo \u9a0e 10 min \u5373\u9054\u3002", "lat": 22.997797, "lng": 120.1759038, "maps_query": "\u671b\u6708\u6a4b, Tainan, Taiwan", "n": "\ud83c\udf1f \u904b\u6cb3 100 \u71c8\u5149\u88dd\u7f6e", "place_id": "ChIJDWSw9BF2bjQRc2ycNROtYNo"}, {"c": "food", "d": "d2", "desc": "\u65e5\u5f0f\u5c45\u9152\u5c4b\uff0c\u808b\u773c\u725b\u6392\uff0b\u5275\u610f\u6599\u7406\u3002\u50c5\u6536\u73fe\u91d1\u3002\u71df\u696d\u5230 24:00\u3002", "lat": 23.0009385, "lng": 120.20415649999998, "maps_query": "\u856a\u9ea5\u9152\u98df UMAI, \u53f0\u5357\u5e02\u5317\u5340\u9577\u5317\u885752\u865f", "n": "\u856a\u9ea5\u9152\u98df UMAI", "place_id": "ChIJWZ88ewB3bjQRo1bpU3bkRZA"}, {"c": "food", "d": "d3", "desc": "\u98ef\u5e97\u5167\u7528\u65e9\u9910\u3002", "lat": 22.988973299999998, "lng": 120.20002699999998, "maps_query": "\u7159\u6ce2\u5927\u98ef\u5e97\u53f0\u5357\u9928, Tainan, Taiwan", "n": "\u7159\u6ce2\u65e9\u9910", "place_id": "ChIJDygZSKp3bjQRAtS_auKYwNI"}, {"c": "spot", "d": "d3", "desc": "\u5168\u53f0\u9996\u5b78\uff0c1665 \u5e74\u5efa\u7acb\u3002\u8ddd\u7159\u6ce2\u6b65\u884c 3 min\uff0c\u65e9\u4e0a\u6700\u6e05\u5e7d\u3002", "lat": 22.9905296, "lng": 120.2040401, "maps_query": "\u53f0\u5357\u5b54\u5edf, Tainan, Taiwan", "n": "\u53f0\u5357\u5b54\u5edf", "place_id": "ChIJFbzVrGJ2bjQRkZC9jslaIgs"}, {"c": "spot", "d": "d3", "desc": "\u5742\u8302\u8a2d\u8a08\u788e\u5f62\u5c4b\u9802\u5efa\u7bc9\u300210:00 \u958b\u9580\uff0c\u8ddd\u5b54\u5edf\u6b65\u884c 3 min\u3002", "lat": 22.990346799999998, "lng": 120.2014304, "maps_query": "\u53f0\u5357\u7f8e\u8853\u9928\u4e8c\u9928, Tainan, Taiwan", "n": "\u53f0\u5357\u7f8e\u8853\u9928\u4e8c\u9928", "place_id": "ChIJ7Ruxw3x2bjQRZk4MEAECIq4"}, {"c": "spot", "d": "d3", "desc": "1932 \u65e5\u6cbb\u767e\u8ca8\u53e4\u8e5f\uff0c\u9802\u6a13\u6709\u4e8c\u6230\u5f48\u75d5\u548c\u672b\u5ee3\u793e\u795e\u793e\u300211:00 \u958b\u9580\u3002", "lat": 22.9917925, "lng": 120.2025232, "maps_query": "\u6797\u767e\u8ca8, Tainan, Taiwan", "n": "\u6797\u767e\u8ca8", "place_id": "ChIJrZJc4GJ2bjQRa3BRyIgtRcM"}, {"c": "food", "d": "d3", "desc": "\u4e0d\u63d0\u4f9b\u8a02\u4f4d\u50c5\u73fe\u5834\u5019\u4f4d\u3002\u751c\u9ede\u7cbe\u7dfb\u6578\u91cf\u6709\u9650\uff0c12:00 \u958b\u9580\u5c31\u5230\u3002", "lat": 22.983804799999998, "lng": 120.20564489999998, "maps_query": "\u70cf\u6728\u751c\u9ede, Tainan, Taiwan", "n": "\u70cf\u6728 Wumu \u751c\u9ede", "place_id": "ChIJYw2mYBF3bjQR5nLPEb_1QJA"}, {"c": "spot", "d": "d3", "desc": "\u65e5\u6cbb\u8ecd\u4e8b\u7737\u6751\u5c55\u89bd\u7a7a\u9593\u3002\u26a0\ufe0f 12-13 \u5348\u4f11\u4e0d\u958b\u653e\uff0c13:00 \u5f8c\u5165\u5834\u3002", "lat": 22.977594200000002, "lng": 120.20153390000002, "maps_query": "\u6c34\u4ea4\u793e\u6587\u5316\u5712\u5340, Tainan, Taiwan", "n": "\u6c34\u4ea4\u793e\u6587\u5316\u5712\u5340", "place_id": "ChIJW7GkVtR1bjQRPbD_kb-p0_8"}, {"c": "food", "d": "d3", "desc": "\u7c73\u5176\u6797\u5fc5\u6bd4\u767b x4 \u767e\u5e74\u4e2d\u85e5\u884c\u3002\u5341\u5168/\u56db\u7269/\u516b\u73cd\u85e5\u81b3\uff0c\u542b\u4e3b\u98df\uff0b\u751c\u9ede\u3002", "lat": 22.9966099, "lng": 120.20043369999999, "maps_query": "\u535a\u4ec1\u5802, \u53f0\u5357\u5e02\u4e2d\u897f\u5340\u897f\u9580\u8def\u4e8c\u6bb5300\u5df727\u865f", "n": "\u535a\u4ec1\u5802", "place_id": "ChIJYZYP4mN2bjQRVvKY0Fl3zzg"}, {"c": "drink", "d": "d3", "desc": "\u535a\u4ec1\u5802\u5230\u548c\u6d0b\u4ead\u4e4b\u9593\u7a7a\u6a94\uff0c\u4f86\u676f\u62b9\u8336\u3002", "lat": 22.9900728, "lng": 120.19927290000001, "maps_query": "\u4e07\u8336\u5ddd, Tainan, Taiwan", "n": "\u4e07\u8336\u5ddd", "place_id": "ChIJ6fogxUd3bjQR-VXrP12iIqg"}, {"c": "food", "d": "d3", "desc": "\u65e5\u672c\u4eba\u4e3b\u5eda\u6d0b\u98df\u5c4b\uff0c\u53f0\u7063\u6eab\u9ad4\u725b\u6f22\u5821\u6392\u3002\u5df2\u9810\u7d04\u78ba\u8a8d\u3002", "lat": 22.9953807, "lng": 120.2115608, "maps_query": "\u548c\u6d0b\u4ead \u771f\u590f Manatsu, \u53f0\u5357\u5e02\u4e2d\u897f\u5340\u5317\u9580\u8def\u4e00\u6bb5141\u5df72\u865f", "n": "\u548c\u6d0b\u4ead \u771f\u590f", "place_id": "ChIJx7BkVQB3bjQRggT-VmNzwFU"}, {"c": "transport", "d": "d3", "desc": "Uber ~20 min\u3002\u672b\u73ed\u8eca\u7d04 21:30-22:00\u3002", "lat": 22.9246367, "lng": 120.28566, "maps_query": "HSR Tainan Station, Taiwan", "n": "\u524d\u5f80\u9ad8\u9435\u53f0\u5357\u7ad9", "place_id": "ChIJfXKoA6ZzbjQRrgQ9yogpRsI"}];
+
+var allBounds=L.latLngBounds([]);
+var dayBoundsMap={};
+(function(){
+  if(pts.length===0)return;
+  var dayPts={};
+  pts.forEach(function(p){
+    allBounds.extend([p.lat,p.lng]);
+    if(!dayPts[p.d])dayPts[p.d]=[];
+    dayPts[p.d].push(p);
+  });
+  Object.keys(dayPts).forEach(function(d){
+    var b=L.latLngBounds(dayPts[d].map(function(p){return[p.lat,p.lng]}));
+    dayBoundsMap[d]=b;
+  });
+})();
+
+function mkIco(col){
+  return L.divIcon({className:'',html:'<svg width="22" height="30" viewBox="0 0 28 36"><path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="'+col+'" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>',iconSize:[22,30],iconAnchor:[11,30],popupAnchor:[0,-30]});
+}
+
+function initMap(){
+  mo=L.map('map');
+  if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});else mo.setView([0,0],2);
+  L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:18}).addTo(mo);
+  pts.forEach(function(p){
+    var m=L.marker([p.lat,p.lng],{icon:mkIco(colors[p.c]||'#999')});
+    var dayLabel=p.d.replace('d','Day ');
+    var url=p.place_id?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n)+'&query_place_id='+p.place_id:(p.lat&&p.lng)?'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.maps_query||p.n);
+    m.bindPopup('<div style="min-width:180px"><b style="font-size:14px">'+p.n+'</b><br><span style="font-size:11px;color:#888">'+dayLabel+'</span><br><span style="font-size:12px;color:#555;line-height:1.5">'+(p.desc||'')+'</span><br><a href="'+url+'" target="_blank" style="color:#1a73e8;font-size:12px;margin-top:4px;display:inline-block">&#128205; 在 Google Maps 開啟</a></div>');
+    m.pd=p;
+    m.addTo(mo);
+    markers.push(m);
+  });
+  // Color legend
+  var legend=L.control({position:'bottomright'});
+  legend.onAdd=function(){
+    var d=L.DomUtil.create('div');
+    d.style.cssText='background:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:12px;line-height:2.2';
+    var legendItems=[
+      ['#e74c3c','住宿'],
+      ['#2e86c1','工作'],
+      ['#e67e22','美食'],
+      ['#27ae60','景點'],
+      ['#95a5a6','移動']
+    ];
+    d.innerHTML='<b style="font-size:13px;margin-bottom:4px;display:block">圖例</b>'+legendItems.map(function(pair){return '<span style="display:inline-flex;align-items:center;margin-right:10px"><span style="width:10px;height:10px;border-radius:50%;background:'+pair[0]+';display:inline-block;margin-right:4px"></span>'+pair[1]+'</span>'}).join('');
+    return d;
+  };
+  legend.addTo(mo);
+  mapReady=true;
+}
+
+function mf(day,btn){
+  document.querySelectorAll('.map-ctrl button').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(day==='all'){
+    markers.forEach(function(m){if(!mo.hasLayer(m))mo.addLayer(m)});
+    if(allBounds.isValid())mo.fitBounds(allBounds,{padding:[30,30],maxZoom:16});
+  } else {
+    markers.forEach(function(m){
+      if(m.pd.d===day){if(!mo.hasLayer(m))mo.addLayer(m)} else mo.removeLayer(m);
+    });
+    var b=dayBoundsMap[day];
+    if(b&&b.isValid())mo.fitBounds(b,{padding:[30,30],maxZoom:16});
+  }
+}
+</script>
+</body>
+</html>
