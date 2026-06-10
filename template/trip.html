@@ -255,6 +255,19 @@ a.place:active{background:#e3edfa}
   {% endfor %}
   {% if travel_seg.found %}
     {% set t = travel_seg.found %}
+    {% set zero_seg = namespace(value=false) %}
+    {% if t.recommended_mode and t.modes and t.modes[t.recommended_mode] is defined %}
+      {% set rm0 = t.modes[t.recommended_mode] %}
+      {% if (rm0.duration_min | float) == 0 and (rm0.distance_km | float) == 0 %}
+        {% set zero_seg.value = true %}
+      {% endif %}
+    {% elif t.modes and t.source == 'api' %}
+      {% set best0 = t.modes.get('driving') or t.modes.get('walking') or t.modes.get('transit') %}
+      {% if best0 and (best0.duration_min | float) == 0 and (best0.distance_km | float) == 0 %}
+        {% set zero_seg.value = true %}
+      {% endif %}
+    {% endif %}
+    {% if not zero_seg.value %}
 <div class="travel-seg">
   <div class="seg-main">
     <span class="seg-icon">{{ mode_icon.get(t.recommended_mode or t.mode, t.icon | default('')) }}</span>
@@ -291,6 +304,7 @@ a.place:active{background:#e3edfa}
   </div>
   {%- endif -%}
 </div>
+    {% endif %}
   {% endif %}
 {% endif %}
 
